@@ -1,403 +1,497 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DNOTE - Digital Note-Taking App</title>
-  <!-- Tailwind CSS v3 -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Font Awesome -->
-  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-  <!-- Atrament.js for Drawing -->
-  <script src="https://cdn.jsdelivr.net/npm/atrament@1.0.0/dist/atramen.min.js"></script>
-  <!-- jsPDF for PDF Export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <!-- PDF.js for PDF Import -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  
-  <!-- Tailwind Configuration -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#4f46e5',
-            secondary: '#6366f1',
-            accent: '#8b5cf6',
-            success: '#10b981',
-            warning: '#f59e0b',
-            error: '#ef4444',
-            info: '#3b82f6',
-            light: '#f3f4f6',
-            dark: '#1f2937'
-          },
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-          },
-          boxShadow: {
-            'inner-lg': 'inset 0 2px 10px 0 rgba(0, 0, 0, 0.1)',
-          }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteFlow - Modern Note Taking App</title>
+    <!-- Tailwind CSS v3 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2canvas for capturing canvas content -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0f2a4a',
+                        secondary: '#1e40af',
+                        accent: '#f97316',
+                        light: '#f8fafc',
+                        dark: '#0f172a'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Georgia', 'serif']
+                    },
+                    boxShadow: {
+                        'inner-lg': 'inset 0 2px 10px 0 rgba(0, 0, 0, 0.1)',
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.37)'
+                    },
+                    backdropBlur: {
+                        'glass': '4px'
+                    }
+                }
+            }
         }
-      }
-    }
-  </script>
-  
-  <style type="text/tailwindcss">
-    @layer utilities {
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-      }
-      .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      .transition-height {
-        transition: max-height 0.3s ease-in-out;
-      }
-    }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .glass-effect {
+                @apply bg-white bg-opacity-20 backdrop-blur-glass shadow-glass border border-white border-opacity-20 rounded-xl;
+            }
+            .btn-primary {
+                @apply bg-accent hover:bg-accent/90 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2;
+            }
+            .btn-secondary {
+                @apply bg-secondary hover:bg-secondary/90 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2;
+            }
+            .btn-outline {
+                @apply border border-accent text-accent hover:bg-accent/10 font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2;
+            }
+            .input-field {
+                @apply bg-white/10 border border-white/20 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-accent/50 text-white placeholder-white/50;
+            }
+            .nav-item {
+                @apply flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-white/10;
+            }
+            .nav-item.active {
+                @apply bg-white/10 text-accent;
+            }
+            .note-card {
+                @apply bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4 hover:shadow-lg transition-all duration-300 hover:bg-white/15 cursor-pointer;
+            }
+            .tool-btn {
+                @apply w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:bg-white/10;
+            }
+            .tool-btn.active {
+                @apply bg-white/10 text-accent;
+            }
+            .color-option {
+                @apply w-6 h-6 rounded-full cursor-pointer transition-all duration-200 ring-2 ring-offset-2 ring-offset-primary;
+            }
+            .color-option.active {
+                @apply ring-white;
+            }
+        }
+    </style>
     
-    /* Custom styles */
-    .tool-btn.active {
-      @apply bg-primary text-white;
-    }
-    
-    .canvas-container {
-      touch-action: none;
-    }
-    
-    .note-item {
-      transition: all 0.2s ease;
-    }
-    
-    .note-item:hover {
-      transform: translateY(-1px);
-    }
-    
-    .notification {
-      transition: all 0.3s ease;
-    }
-  </style>
 </head>
-<body class="bg-gray-50 h-screen flex flex-col overflow-hidden">
-  <!-- Header -->
-  <header class="bg-white border-b border-gray-200 py-3 px-4 flex items-center justify-between">
-    <div class="flex items-center">
-      <div class="text-primary font-bold text-2xl mr-2">
-        <i class="fa fa-sticky-note-o"></i>
-      </div>
-      <h1 class="text-xl font-bold text-gray-800">DNOTE</h1>
-    </div>
-    
-    <div class="flex items-center space-x-4">
-      <button id="new-note-btn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center transition-all">
-        <i class="fa fa-plus mr-2"></i> New Note
-      </button>
-      
-      <div class="relative">
-        <button class="text-gray-500 hover:text-gray-700">
-          <i class="fa fa-bell-o text-xl"></i>
-        </button>
-      </div>
-      
-      <div class="relative">
-        <button class="text-gray-500 hover:text-gray-700">
-          <i class="fa fa-cog text-xl"></i>
-        </button>
-      </div>
-      
-      <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700">
-        <i class="fa fa-user"></i>
-      </div>
-    </div>
-  </header>
-  
-  <!-- Main Content -->
-  <main class="flex flex-1 overflow-hidden">
-    <!-- Left Sidebar - Navigation -->
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
-      <nav class="p-4 flex-1">
-        <ul class="space-y-2">
-          <li>
-            <a id="nav-all-notes" href="#" class="flex items-center px-4 py-2 rounded-lg bg-primary/10 text-primary">
-              <i class="fa fa-list-ul w-5 mr-3"></i>
-              <span>All Notes</span>
-            </a>
-          </li>
-          <li>
-            <a id="nav-recent" href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-              <i class="fa fa-clock-o w-5 mr-3"></i>
-              <span>Recent</span>
-            </a>
-          </li>
-          <li>
-            <a id="nav-starred" href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-              <i class="fa fa-star-o w-5 mr-3"></i>
-              <span>Starred</span>
-            </a>
-          </li>
-          <li>
-            <a id="nav-trash" href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-              <i class="fa fa-trash-o w-5 mr-3"></i>
-              <span>Trash</span>
-            </a>
-          </li>
-        </ul>
-        
-        <div class="mt-8">
-          <h3 class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Categories</h3>
-          <ul class="space-y-1">
-            <li>
-              <a href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-                <span class="w-2 h-2 rounded-full bg-blue-500 mr-3"></span>
-                <span>Work</span>
-              </a>
-            </li>
-            <li>
-              <a href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-                <span class="w-2 h-2 rounded-full bg-green-500 mr-3"></span>
-                <span>Personal</span>
-              </a>
-            </li>
-            <li>
-              <a href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-                <span class="w-2 h-2 rounded-full bg-purple-500 mr-3"></span>
-                <span>Projects</span>
-              </a>
-            </li>
-            <li>
-              <a href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
-                <span class="w-2 h-2 rounded-full bg-yellow-500 mr-3"></span>
-                <span>Ideas</span>
-              </a>
-            </li>
-          </ul>
-        </div>
-      </nav>
-      
-      <div class="p-4 border-t border-gray-200">
-        <button class="flex items-center text-gray-700 hover:text-primary">
-          <i class="fa fa-plus-circle mr-2"></i>
-          <span>Add Category</span>
-        </button>
-      </div>
-    </aside>
-    
-    <!-- Middle Section - Notes List -->
-    <section class="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
-      <div class="p-4 border-b border-gray-200">
-        <div class="relative">
-          <input type="text" placeholder="Search notes..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-          <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
-        </div>
-      </div>
-      
-      <div class="flex-1 overflow-y-auto p-4" id="notes-list">
-        <!-- Notes will be dynamically added here -->
-      </div>
-    </section>
-    
-    <!-- Right Section - Note Editor -->
-    <section class="flex-1 flex flex-col bg-white">
-      <!-- Note Editor Header -->
-      <div class="p-4 border-b border-gray-200 flex items-center justify-between">
-        <div class="flex-1">
-          <input type="text" id="note-title" placeholder="Note title..." class="w-full text-xl font-medium border-none outline-none bg-transparent">
-        </div>
-        
-        <div class="flex items-center space-x-2">
-          <button id="import-pdf-btn" class="text-gray-600 hover:text-primary p-2 rounded-lg hover:bg-gray-100">
-            <i class="fa fa-file-pdf-o"></i>
-          </button>
-          <button id="export-pdf-btn" class="text-gray-600 hover:text-primary p-2 rounded-lg hover:bg-gray-100">
-            <i class="fa fa-download"></i>
-          </button>
-          <button id="star-note-btn" class="text-gray-600 hover:text-yellow-500 p-2 rounded-lg hover:bg-gray-100">
-            <i class="fa fa-star-o"></i>
-          </button>
-        </div>
-      </div>
-      
-      <!-- Drawing Tools -->
-      <div class="p-2 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-        <div class="flex items-center space-x-1">
-          <button class="tool-btn active p-2 rounded-lg hover:bg-gray-200" data-tool="pen">
-            <i class="fa fa-pencil"></i>
-          </button>
-          <button class="tool-btn p-2 rounded-lg hover:bg-gray-200" data-tool="eraser">
-            <i class="fa fa-eraser"></i>
-          </button>
-          <button class="tool-btn p-2 rounded-lg hover:bg-gray-200" data-tool="text">
-            <i class="fa fa-font"></i>
-          </button>
-          
-          <div class="h-6 border-r border-gray-300 mx-1"></div>
-          
-          <div class="relative">
-            <button id="color-picker-btn" class="p-2 rounded-lg hover:bg-gray-200">
-              <i class="fa fa-paint-brush"></i>
-            </button>
-            
-            <div id="color-picker" class="hidden absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-              <div class="grid grid-cols-6 gap-2">
-                <button data-color="#000000" class="w-6 h-6 rounded-full bg-black"></button>
-                <button data-color="#4f46e5" class="w-6 h-6 rounded-full bg-primary"></button>
-                <button data-color="#10b981" class="w-6 h-6 rounded-full bg-green-500"></button>
-                <button data-color="#ef4444" class="w-6 h-6 rounded-full bg-red-500"></button>
-                <button data-color="#f59e0b" class="w-6 h-6 rounded-full bg-yellow-500"></button>
-                <button data-color="#8b5cf6" class="w-6 h-6 rounded-full bg-purple-500"></button>
-                <button data-color="#3b82f6" class="w-6 h-6 rounded-full bg-blue-500"></button>
-                <button data-color="#ec4899" class="w-6 h-6 rounded-full bg-pink-500"></button>
-                <button data-color="#14b8a6" class="w-6 h-6 rounded-full bg-teal-500"></button>
-                <button data-color="#f97316" class="w-6 h-6 rounded-full bg-orange-500"></button>
-                <button data-color="#6b7280" class="w-6 h-6 rounded-full bg-gray-500"></button>
-                <button data-color="#ffffff" class="w-6 h-6 rounded-full bg-white border border-gray-300"></button>
-              </div>
+<body class="bg-primary text-light min-h-screen flex flex-col">
+    <!-- App Container -->
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-64 border-r border-white/10 flex flex-col bg-primary/80 backdrop-blur-sm">
+            <!-- Logo -->
+            <div class="p-4 flex items-center gap-3 border-b border-white/10">
+                <img src="https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/c19bc9e1fbe14a7b9aa028c107f216ff~tplv-a9rns2rl98-image.image?rcl=202512052207599344BD5BB2A4D0D4B45C&rk3s=8e244e95&rrcfp=f06b921b&x-expires=1767535712&x-signature=McUoZH7DylvQuTukkqRByye6fDo%3D" alt="NoteFlow Logo" class="w-10 h-10">
+                <h1 class="text-xl font-bold">NoteFlow</h1>
             </div>
-          </div>
-          
-          <div class="relative">
-            <button id="line-width-btn" class="p-2 rounded-lg hover:bg-gray-200">
-              <i class="fa fa-arrows-h"></i>
-            </button>
             
-            <div id="line-width-picker" class="hidden absolute bottom-full left-0 mb-2 p-3 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-              <input type="range" id="line-width-slider" min="1" max="10" value="2" class="w-24">
+            <!-- Navigation -->
+            <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+                <p class="text-xs uppercase text-white/50 font-semibold mb-2 px-4">Main</p>
+                <a href="#" class="nav-item active" data-view="notes">
+                    <i class="fa fa-home w-5 text-center"></i>
+                    <span>All Notes</span>
+                </a>
+                <a href="#" class="nav-item" data-view="categories">
+                    <i class="fa fa-folder w-5 text-center"></i>
+                    <span>Categories</span>
+                </a>
+                <a href="#" class="nav-item" data-view="pdfs">
+                    <i class="fa fa-file-pdf-o w-5 text-center"></i>
+                    <span>PDF Documents</span>
+                </a>
+                
+                <p class="text-xs uppercase text-white/50 font-semibold mb-2 mt-6 px-4">Categories</p>
+                <div id="categories-list">
+                    <!-- Categories will be dynamically populated here -->
+                </div>
+                
+                <button class="btn-outline w-full mt-4" id="add-category-btn">
+                    <i class="fa fa-plus"></i>
+                    <span>Add Category</span>
+                </button>
+            </nav>
+            
+            <!-- User Profile -->
+            <div class="p-4 border-t border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center font-semibold">
+                        JD
+                    </div>
+                    <div>
+                        <p class="font-medium">John Doe</p>
+                        <p class="text-xs text-white/50">john@example.com</p>
+                    </div>
+                </div>
             </div>
-          </div>
-        </div>
+        </aside>
         
-        <div class="flex items-center space-x-1">
-          <button id="undo-btn" class="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
-            <i class="fa fa-undo"></i>
-          </button>
-          <button id="redo-btn" class="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
-            <i class="fa fa-repeat"></i>
-          </button>
-          <button id="clear-canvas-btn" class="p-2 rounded-lg hover:bg-gray-200 text-gray-600">
-            <i class="fa fa-trash-o"></i>
-          </button>
-        </div>
-      </div>
-      
-      <!-- Canvas Container -->
-      <div class="flex-1 overflow-hidden relative">
-        <div id="canvas-container" class="w-full h-full canvas-container">
-          <canvas id="drawing-canvas" class="w-full h-full"></canvas>
-          
-          <!-- Empty State -->
-          <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-            <i class="fa fa-pencil text-5xl mb-3"></i>
-            <h3 class="text-xl font-medium mb-1">Start Drawing</h3>
-            <p class="text-sm">Create a new note or select one from the list</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-  
-  <!-- Import PDF Modal -->
-  <div id="import-pdf-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-medium">Import PDF</h3>
-        <button id="close-import-modal" class="text-gray-500 hover:text-gray-700">
-          <i class="fa fa-times"></i>
-        </button>
-      </div>
-      
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-1">Select PDF File</label>
-        <input type="file" id="pdf-file-input" accept=".pdf" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-        <p id="selected-file-name" class="mt-1 text-sm text-gray-500"></p>
-      </div>
-      
-      <div id="import-status" class="hidden mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center">
-        <i class="fa fa-spinner fa-spin mr-2"></i>
-        <span>Loading PDF...</span>
-      </div>
-      
-      <div class="flex justify-end space-x-3">
-        <button id="cancel-import" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-          Cancel
-        </button>
-        <button id="confirm-import" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90" disabled>
-          Import
-        </button>
-      </div>
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <header class="h-16 border-b border-white/10 flex items-center justify-between px-6">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-xl font-semibold" id="current-view-title">All Notes</h2>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <div class="relative w-80">
+                        <input type="text" placeholder="Search notes..." class="input-field pl-4 pr-10 w-full">
+                        <i class="fa fa-search absolute right-3 top-1/2 -translate-y-1/2 text-white/50"></i>
+                    </div>
+                    <button class="btn-primary" id="new-note-btn">
+                        <i class="fa fa-plus"></i>
+                        <span>New Note</span>
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Content Area -->
+            <div class="flex-1 overflow-y-auto p-6" id="content-area">
+                <!-- Notes Grid View (Default) -->
+                <div id="notes-grid-view" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Sample Note Cards -->
+                    <!-- Note cards will be dynamically generated here -->
+                    
+                    <div class="note-card flex items-center justify-center border-2 border-dashed border-white/20 hover:border-accent/50 transition-colors duration-300" id="add-note-card">
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
+                                <i class="fa fa-plus text-xl text-white/70"></i>
+                            </div>
+                            <p class="text-white/70">Create New Note</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Note Editor View (Hidden by default) -->
+                <div id="note-editor-view" class="hidden h-full flex flex-col">
+                    <!-- Editor Toolbar -->
+                    <div class="bg-secondary/50 rounded-t-xl p-3 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <button class="tool-btn active" data-tool="pen">
+                                <i class="fa fa-pencil"></i>
+                            </button>
+                            <button class="tool-btn" data-tool="text">
+                                <i class="fa fa-font"></i>
+                            </button>
+                            <button class="tool-btn" data-tool="eraser">
+                                <i class="fa fa-eraser"></i>
+                            </button>
+                            <div class="h-6 border-r border-white/20 mx-2"></div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">Color:</span>
+                                <div class="flex items-center gap-2">
+                                    <div class="color-option active" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                                    <div class="color-option" style="background-color: #f97316;" data-color="#f97316"></div>
+                                    <div class="color-option" style="background-color: #3b82f6;" data-color="#3b82f6"></div>
+                                    <div class="color-option" style="background-color: #10b981;" data-color="#10b981"></div>
+                                    <div class="color-option" style="background-color: #8b5cf6;" data-color="#8b5cf6"></div>
+                                    <div class="relative">
+                                        <div class="color-option flex items-center justify-center" style="background-color: #ff0000;" id="custom-color-btn">
+                                            <i class="fa fa-plus text-xs text-white"></i>
+                                        </div>
+                                        <div class="hidden absolute -bottom-48 left-1/2 -translate-x-1/2 bg-secondary p-4 rounded-lg shadow-lg z-20 w-64" id="color-picker-container">
+                                            <h4 class="text-sm font-medium mb-3">Custom Color</h4>
+                                            <div class="grid grid-cols-3 gap-3 mb-3">
+                                                <div>
+                                                    <label class="text-xs text-white/70">R</label>
+                                                    <input type="range" min="0" max="255" value="255" class="w-full accent-accent" id="color-r">
+                                                    <span class="text-xs text-white/70" id="color-r-value">255</span>
+                                                </div>
+                                                <div>
+                                                    <label class="text-xs text-white/70">G</label>
+                                                    <input type="range" min="0" max="255" value="255" class="w-full accent-accent" id="color-g">
+                                                    <span class="text-xs text-white/70" id="color-g-value">255</span>
+                                                </div>
+                                                <div>
+                                                    <label class="text-xs text-white/70">B</label>
+                                                    <input type="range" min="0" max="255" value="255" class="w-full accent-accent" id="color-b">
+                                                    <span class="text-xs text-white/70" id="color-b-value">255</span>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-10 h-10 rounded-full border border-white/20" id="color-preview"></div>
+                                                <button class="btn-primary flex-1 text-sm py-1" id="apply-color-btn">Apply Color</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">Size:</span>
+                                <input type="range" min="1" max="20" value="2" class="w-24 accent-accent" id="brush-size">
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <button class="btn-outline" id="recognize-text-btn">
+                                <i class="fa fa-magic"></i>
+                                <span>Recognize Text</span>
+                            </button>
+                            <button class="btn-primary" id="save-note-btn">
+                                <i class="fa fa-save"></i>
+                                <span>Save</span>
+                            </button>
+                            <button class="tool-btn" id="close-editor-btn">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Editor Canvas -->
+                    <div class="flex-1 bg-white/5 rounded-b-xl overflow-hidden relative">
+                        <canvas id="note-canvas" class="w-full h-full"></canvas>
+                        
+                        <!-- Text Input Overlay (Hidden by default) -->
+                        <div id="text-input-overlay" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/2">
+                            <textarea class="w-full p-4 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50 text-white placeholder-white/50" rows="5" placeholder="Type your text here..."></textarea>
+                            <div class="flex justify-end mt-3">
+                                <button class="btn-primary" id="insert-text-btn">Insert Text</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Recognition Result Overlay (Hidden by default) -->
+                        <div id="recognition-overlay" class="hidden absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <div class="bg-secondary p-6 rounded-xl w-1/2">
+                                <h3 class="text-lg font-semibold mb-3">Recognized Text</h3>
+                                <p class="text-white/70 mb-4">The following text was recognized from your handwriting:</p>
+                                <textarea class="w-full p-4 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/50 text-white placeholder-white/50" rows="5" id="recognized-text">This is a sample of recognized text from your handwriting. You can edit it before inserting.</textarea>
+                                <div class="flex justify-end gap-3 mt-4">
+                                    <button class="btn-outline" id="cancel-recognition-btn">Cancel</button>
+                                    <button class="btn-primary" id="insert-recognized-btn">Insert Text</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PDFs View (Hidden by default) -->
+                <div id="pdfs-view" class="hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">PDF Documents</h2>
+                        <button class="btn-primary" id="upload-pdf-btn">
+                            <i class="fa fa-upload"></i>
+                            <span>Upload PDF</span>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Sample PDF Cards -->
+                        <div class="note-card" data-pdf-id="1">
+                            <div class="h-40 bg-white/5 rounded-lg mb-3 flex items-center justify-center">
+                                <i class="fa fa-file-pdf-o text-4xl text-red-400"></i>
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-semibold">Quarterly Report</h3>
+                                <span class="text-xs text-white/50">2 MB</span>
+                            </div>
+                            <p class="text-xs text-white/50 mt-1">Last opened: Yesterday</p>
+                            <div class="flex items-center gap-2 mt-3">
+                                <button class="btn-outline text-xs py-1 px-2">
+                                    <i class="fa fa-eye"></i>
+                                    <span>View</span>
+                                </button>
+                                <button class="btn-outline text-xs py-1 px-2">
+                                    <i class="fa fa-download"></i>
+                                    <span>Download</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="note-card" data-pdf-id="2">
+                            <div class="h-40 bg-white/5 rounded-lg mb-3 flex items-center justify-center">
+                                <i class="fa fa-file-pdf-o text-4xl text-red-400"></i>
+                            </div>
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-semibold">Project Proposal</h3>
+                                <span class="text-xs text-white/50">1.5 MB</span>
+                            </div>
+                            <p class="text-xs text-white/50 mt-1">Last opened: 3 days ago</p>
+                            <div class="flex items-center gap-2 mt-3">
+                                <button class="btn-outline text-xs py-1 px-2">
+                                    <i class="fa fa-eye"></i>
+                                    <span>View</span>
+                                </button>
+                                <button class="btn-outline text-xs py-1 px-2">
+                                    <i class="fa fa-download"></i>
+                                    <span>Download</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="note-card flex items-center justify-center border-2 border-dashed border-white/20 hover:border-accent/50 transition-colors duration-300">
+                            <div class="text-center">
+                                <div class="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
+                                    <i class="fa fa-cloud-upload text-xl text-white/70"></i>
+                                </div>
+                                <p class="text-white/70">Upload PDF</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PDF Viewer (Hidden by default) -->
+                <div id="pdf-viewer" class="hidden h-full flex flex-col">
+                    <div class="bg-secondary/50 rounded-t-xl p-3 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <button class="tool-btn" id="close-pdf-btn">
+                                <i class="fa fa-arrow-left"></i>
+                            </button>
+                            <h3 class="font-semibold" id="pdf-title">Quarterly Report</h3>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <button class="tool-btn" data-pdf-tool="highlight">
+                                <i class="fa fa-highlighter"></i>
+                            </button>
+                            <button class="tool-btn" data-pdf-tool="note">
+                                <i class="fa fa-sticky-note"></i>
+                            </button>
+                            <button class="tool-btn" data-pdf-tool="download">
+                                <i class="fa fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 bg-white/5 rounded-b-xl overflow-auto p-4">
+                        <div id="pdf-container" class="w-full flex justify-center">
+                            <!-- PDF content will be rendered here -->
+                            <div class="bg-white w-[800px] min-h-[1000px] m-4 p-8 text-dark">
+                                <h1 class="text-2xl font-bold mb-4">Quarterly Report</h1>
+                                <h2 class="text-xl font-semibold mb-2">Q3 2025</h2>
+                                <p class="mb-4">This is a sample PDF document displayed in the NoteFlow application. In a real implementation, we would use PDF.js to render actual PDF content.</p>
+                                <h3 class="text-lg font-semibold mb-2">Summary</h3>
+                                <p class="mb-4">The third quarter showed significant growth in all key metrics. Revenue increased by 15% compared to the previous quarter, and user engagement is at an all-time high.</p>
+                                <h3 class="text-lg font-semibold mb-2">Key Performance Indicators</h3>
+                                <ul class="list-disc pl-6 mb-4">
+                                    <li>Revenue: $4.2M (+15% QoQ)</li>
+                                    <li>Active Users: 125K (+10% QoQ)</li>
+                                    <li>Customer Retention: 87% (+3% QoQ)</li>
+                                    <li>Conversion Rate: 5.2% (+0.8% QoQ)</li>
+                                </ul>
+                                <h3 class="text-lg font-semibold mb-2">Recommendations</h3>
+                                <p class="mb-4">Based on the current trends, we recommend increasing our marketing budget for the next quarter and expanding our product offerings in the enterprise segment.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Categories View (Hidden by default) -->
+                <div id="categories-view" class="hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold">Categories</h2>
+                        <button class="btn-primary" id="add-category-modal-btn">
+                            <i class="fa fa-plus"></i>
+                            <span>Add Category</span>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="categories-grid">
+                        <!-- Categories will be dynamically populated here -->
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
-  </div>
-  
-  <!-- Export PDF Modal -->
-  <div id="export-pdf-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-medium">Export PDF</h3>
-        <button id="close-export-modal" class="text-gray-500 hover:text-gray-700">
-          <i class="fa fa-times"></i>
-        </button>
-      </div>
-      
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-1">File Name</label>
-        <input type="text" id="export-file-name" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" value="My Note">
-      </div>
-      
-      <div class="mb-4">
-        <label class="block text-sm font-medium text-gray-700 mb-2">Page Range</label>
-        <div class="space-y-2">
-          <div class="flex items-center">
-            <input type="radio" id="all-pages" name="page-range" value="all" checked class="mr-2">
-            <label for="all-pages">All Pages</label>
-          </div>
-          <div class="flex items-center">
-            <input type="radio" id="current-page" name="page-range" value="current" class="mr-2">
-            <label for="current-page">Current Page</label>
-          </div>
-          <div class="flex items-center">
-            <input type="radio" id="custom-range" name="page-range" value="custom" class="mr-2">
-            <label for="custom-range">Custom Range</label>
-          </div>
-          <div id="custom-page-range" class="hidden ml-6 mt-2">
-            <input type="text" placeholder="e.g., 1-3,5" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-          </div>
+    
+    <!-- Modals -->
+    <!-- Add Category Modal (Hidden by default) -->
+    <div id="add-category-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-secondary p-6 rounded-xl w-96">
+            <h3 class="text-lg font-semibold mb-4">Add New Category</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Category Name</label>
+                    <input type="text" class="input-field w-full" placeholder="Enter category name">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Color</label>
+                    <div class="flex items-center gap-2">
+                        <div class="color-option active" style="background-color: #3b82f6;" data-color="#3b82f6"></div>
+                        <div class="color-option" style="background-color: #10b981;" data-color="#10b981"></div>
+                        <div class="color-option" style="background-color: #8b5cf6;" data-color="#8b5cf6"></div>
+                        <div class="color-option" style="background-color: #f97316;" data-color="#f97316"></div>
+                        <div class="color-option" style="background-color: #ef4444;" data-color="#ef4444"></div>
+                        <div class="color-option" style="background-color: #ec4899;" data-color="#ec4899"></div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Icon</label>
+                    <div class="grid grid-cols-6 gap-2">
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                            <i class="fa fa-folder"></i>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                            <i class="fa fa-briefcase"></i>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                            <i class="fa fa-home"></i>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                            <i class="fa fa-book"></i>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                            <i class="fa fa-lightbulb-o"></i>
+                        </div>
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                            <i class="fa fa-heart"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button class="btn-outline" id="cancel-category-btn">Cancel</button>
+                <button class="btn-primary" id="save-category-btn">Save</button>
+            </div>
         </div>
-      </div>
-      
-      <div id="export-status" class="hidden mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center">
-        <i class="fa fa-spinner fa-spin mr-2"></i>
-        <span>Generating PDF...</span>
-      </div>
-      
-      <div class="flex justify-end space-x-3">
-        <button id="cancel-export" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-          Cancel
-        </button>
-        <button id="confirm-export" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
-          Export
-        </button>
-      </div>
     </div>
-  </div>
-  
-  <!-- Notification -->
-  <div id="notification" class="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 w-80 transform translate-y-10 opacity-0 transition-all duration-300 z-50">
-    <div class="flex items-start">
-      <div id="notification-icon" class="flex-shrink-0 mr-3 text-green-500">
-        <i class="fa fa-check-circle text-xl"></i>
-      </div>
-      <div class="flex-1">
-        <h4 id="notification-title" class="font-medium text-gray-900">Success</h4>
-        <p id="notification-message" class="text-sm text-gray-600 mt-1">Operation completed successfully.</p>
-      </div>
-      <button id="close-notification" class="text-gray-400 hover:text-gray-600 ml-4">
-        <i class="fa fa-times"></i>
-      </button>
+    
+    <!-- Upload PDF Modal (Hidden by default) -->
+    <div id="upload-pdf-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-secondary p-6 rounded-xl w-96">
+            <h3 class="text-lg font-semibold mb-4">Upload PDF Document</h3>
+            <div class="space-y-4">
+                <div class="border-2 border-dashed border-white/20 rounded-lg p-6 text-center">
+                    <i class="fa fa-cloud-upload text-3xl text-white/50 mb-2"></i>
+                    <p class="text-sm text-white/70 mb-2">Drag and drop your PDF file here</p>
+                    <p class="text-xs text-white/50">or</p>
+                    <button class="btn-outline mt-3">Browse Files</button>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Document Name</label>
+                    <input type="text" class="input-field w-full" placeholder="Enter document name">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Category</label>
+                    <select class="input-field w-full">
+                        <option>Select category</option>
+                        <option>Work</option>
+                        <option>Personal</option>
+                        <option>Study</option>
+                        <option>Projects</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button class="btn-outline" id="cancel-upload-btn">Cancel</button>
+                <button class="btn-primary" id="confirm-upload-btn">Upload</button>
+            </div>
+        </div>
     </div>
-  </div>
-  
-  <!-- JavaScript Files -->
-  <script src="js/app.js"></script>
-  <script src="js/pdf-utils.js"></script>
-  <script src="js/debug.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="js/app.js"></script>
 </body>
 </html>
