@@ -1,0 +1,2520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNOTE - Enhanced Digital Note-Taking App</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4f46e5',
+            secondary: '#6366f1',
+            accent: '#8b5cf6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            error: '#ef4444',
+            info: '#3b82f6',
+            light: '#f3f4f6',
+            dark: '#1f2937'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            'inner-lg': 'inset 0 2px 10px 0 rgba(0, 0, 0, 0.1)',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .transition-height {
+        transition: max-height 0.3s ease-in-out;
+      }
+      .note-item-menu {
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+      }
+      .note-item:hover .note-item-menu {
+        opacity: 1;
+      }
+      .text-input-border {
+        border: 2px dashed #4f46e5;
+        min-width: 100px;
+        min-height: 30px;
+        padding: 4px;
+        outline: none;
+        background-color: rgba(79, 70, 229, 0.05);
+      }
+      .selection-rect {
+        border: 2px dashed #4f46e5;
+        position: absolute;
+        background-color: rgba(79, 70, 229, 0.1);
+      }
+      .selection-handle {
+        width: 8px;
+        height: 8px;
+        background-color: #4f46e5;
+        border: 1px solid white;
+        position: absolute;
+      }
+      .eraser-preview {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px solid rgba(0, 0, 0, 0.3);
+        background-color: rgba(255, 255, 255, 0.3);
+        pointer-events: none;
+        z-index: 100;
+      }
+    }
+    
+    /* Custom styles */
+    .tool-btn.active {
+      @apply bg-primary text-white;
+    }
+    
+    .canvas-container {
+      touch-action: none;
+    }
+    
+    .note-item {
+      transition: all 0.2s ease;
+    }
+    
+    .note-item:hover {
+      transform: translateY(-1px);
+    }
+    
+    .notification {
+      transition: all 0.3s ease;
+    }
+    
+    /* Fix for event propagation issues */
+    .tool-btn, .nav-item, .action-btn {
+      position: relative;
+      z-index: 10;
+    }
+    
+    /* Text input area styles */
+    .text-input-area {
+      position: absolute;
+      border: 2px dashed #4f46e5;
+      min-width: 200px;
+      min-height: 40px;
+      padding: 8px;
+      background-color: rgba(255, 255, 255, 0.9);
+      outline: none;
+      resize: both;
+      overflow: auto;
+      font-family: inherit;
+      font-size: 16px;
+      line-height: 1.5;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col overflow-hidden">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 py-3 px-4 flex items-center justify-between">
+    <div class="flex items-center">
+      <div class="text-primary font-bold text-2xl mr-2">
+        <i class="fa fa-sticky-note-o"></i>
+      </div>
+      <h1 class="text-xl font-bold text-gray-800">DNOTE</h1>
+    </div>
+    
+    <div class="flex items-center space-x-4">
+      <button id="new-note-btn" class="action-btn bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center transition-all">
+        <i class="fa fa-plus mr-2"></i> New Note
+      </button>
+      
+      <div class="relative">
+        <button id="notification-btn" class="action-btn text-gray-500 hover:text-gray-700">
+          <i class="fa fa-bell-o text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="relative">
+        <button id="settings-btn" class="action-btn text-gray-500 hover:text-gray-700">
+          <i class="fa fa-cog text-xl"></i>
+        </button>
+      </div>
+      
+      <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-700">
+        <i class="fa fa-user"></i>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="flex flex-1 overflow-hidden">
+    <!-- Left Sidebar - Navigation -->
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <nav class="p-4 flex-1">
+        <ul class="space-y-2">
+          <li>
+            <a id="nav-all-notes" href="#" class="nav-item flex items-center px-4 py-2 rounded-lg bg-primary/10 text-primary">
+              <i class="fa fa-list-ul w-5 mr-3"></i>
+              <span>All Notes</span>
+            </a>
+          </li>
+          <li>
+            <a id="nav-recent" href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+              <i class="fa fa-clock-o w-5 mr-3"></i>
+              <span>Recent</span>
+            </a>
+          </li>
+          <li>
+            <a id="nav-starred" href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+              <i class="fa fa-star-o w-5 mr-3"></i>
+              <span>Starred</span>
+            </a>
+          </li>
+          <li>
+            <a id="nav-trash" href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+              <i class="fa fa-trash-o w-5 mr-3"></i>
+              <span>Trash</span>
+            </a>
+          </li>
+        </ul>
+        
+        <div class="mt-8">
+          <h3 class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Categories</h3>
+          <ul class="space-y-1">
+            <li>
+              <a href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+                <span class="w-2 h-2 rounded-full bg-blue-500 mr-3"></span>
+                <span>Work</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+                <span class="w-2 h-2 rounded-full bg-green-500 mr-3"></span>
+                <span>Personal</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+                <span class="w-2 h-2 rounded-full bg-purple-500 mr-3"></span>
+                <span>Projects</span>
+              </a>
+            </li>
+            <li>
+              <a href="#" class="nav-item flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+                <span class="w-2 h-2 rounded-full bg-yellow-500 mr-3"></span>
+                <span>Ideas</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </nav>
+      
+      <div class="p-4 border-t border-gray-200">
+        <button id="add-category-btn" class="action-btn flex items-center text-gray-700 hover:text-primary">
+          <i class="fa fa-plus-circle mr-2"></i>
+          <span>Add Category</span>
+        </button>
+      </div>
+    </aside>
+    
+    <!-- Middle Section - Notes List -->
+    <section class="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+      <div class="p-4 border-b border-gray-200">
+        <div class="relative">
+          <input type="text" id="search-input" placeholder="Search notes..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+          <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-4" id="notes-list">
+        <!-- Notes will be dynamically added here -->
+      </div>
+    </section>
+    
+    <!-- Right Section - Note Editor -->
+    <section class="flex-1 flex flex-col bg-white">
+      <!-- Note Editor Header -->
+      <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div class="flex-1">
+          <input type="text" id="note-title" placeholder="Note title..." class="w-full text-xl font-medium border-none outline-none bg-transparent">
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <button id="import-pdf-btn" class="action-btn text-gray-600 hover:text-primary p-2 rounded-lg hover:bg-gray-100">
+            <i class="fa fa-file-pdf-o"></i>
+          </button>
+          <button id="export-pdf-btn" class="action-btn text-gray-600 hover:text-primary p-2 rounded-lg hover:bg-gray-100">
+            <i class="fa fa-download"></i>
+          </button>
+          <button id="star-note-btn" class="action-btn text-gray-600 hover:text-yellow-500 p-2 rounded-lg hover:bg-gray-100">
+            <i class="fa fa-star-o"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Drawing Tools -->
+      <div class="p-2 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+        <div class="flex items-center space-x-1">
+          <button class="tool-btn active p-2 rounded-lg hover:bg-gray-200" data-tool="pen">
+            <i class="fa fa-pencil"></i>
+          </button>
+          <button class="tool-btn p-2 rounded-lg hover:bg-gray-200" data-tool="eraser">
+            <i class="fa fa-eraser"></i>
+          </button>
+          <button class="tool-btn p-2 rounded-lg hover:bg-gray-200" data-tool="text">
+            <i class="fa fa-font"></i>
+          </button>
+          <button class="tool-btn p-2 rounded-lg hover:bg-gray-200" data-tool="select">
+            <i class="fa fa-object-group"></i>
+          </button>
+          
+          <div class="h-6 border-r border-gray-300 mx-1"></div>
+          
+          <div class="relative">
+            <button id="color-picker-btn" class="action-btn p-2 rounded-lg hover:bg-gray-200">
+              <i class="fa fa-paint-brush"></i>
+            </button>
+            
+            <div id="color-picker" class="hidden absolute bottom-full left-0 mb-2 p-2 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <div class="grid grid-cols-6 gap-2">
+                <button data-color="#000000" class="w-6 h-6 rounded-full bg-black"></button>
+                <button data-color="#4f46e5" class="w-6 h-6 rounded-full bg-primary"></button>
+                <button data-color="#10b981" class="w-6 h-6 rounded-full bg-green-500"></button>
+                <button data-color="#ef4444" class="w-6 h-6 rounded-full bg-red-500"></button>
+                <button data-color="#f59e0b" class="w-6 h-6 rounded-full bg-yellow-500"></button>
+                <button data-color="#8b5cf6" class="w-6 h-6 rounded-full bg-purple-500"></button>
+                <button data-color="#3b82f6" class="w-6 h-6 rounded-full bg-blue-500"></button>
+                <button data-color="#ec4899" class="w-6 h-6 rounded-full bg-pink-500"></button>
+                <button data-color="#14b8a6" class="w-6 h-6 rounded-full bg-teal-500"></button>
+                <button data-color="#f97316" class="w-6 h-6 rounded-full bg-orange-500"></button>
+                <button data-color="#6b7280" class="w-6 h-6 rounded-full bg-gray-500"></button>
+                <button data-color="#ffffff" class="w-6 h-6 rounded-full bg-white border border-gray-300"></button>
+              </div>
+            </div>
+          </div>
+          
+          <div class="relative">
+            <button id="line-width-btn" class="action-btn p-2 rounded-lg hover:bg-gray-200">
+              <i class="fa fa-arrows-h"></i>
+            </button>
+            
+            <div id="line-width-picker" class="hidden absolute bottom-full left-0 mb-2 p-3 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <input type="range" id="line-width-slider" min="1" max="10" value="2" class="w-24">
+              <div class="text-xs text-center mt-1">Line Width</div>
+            </div>
+          </div>
+          
+          <!-- Eraser Radius Control (visible only when eraser is active) -->
+          <div class="relative" id="eraser-radius-container" style="display: none;">
+            <button id="eraser-radius-btn" class="action-btn p-2 rounded-lg hover:bg-gray-200">
+              <i class="fa fa-circle-o"></i>
+            </button>
+            
+            <div id="eraser-radius-picker" class="hidden absolute bottom-full left-0 mb-2 p-3 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <input type="range" id="eraser-radius-slider" min="5" max="30" value="15" class="w-24">
+              <div class="text-xs text-center mt-1">Eraser Size</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex items-center space-x-1">
+          <button id="undo-btn" class="action-btn p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+            <i class="fa fa-undo"></i>
+          </button>
+          <button id="redo-btn" class="action-btn p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+            <i class="fa fa-repeat"></i>
+          </button>
+          <button id="clear-canvas-btn" class="action-btn p-2 rounded-lg hover:bg-gray-200 text-gray-600">
+            <i class="fa fa-trash-o"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Canvas Container -->
+      <div class="flex-1 overflow-hidden relative">
+        <div id="canvas-container" class="w-full h-full canvas-container">
+          <canvas id="drawing-canvas" class="w-full h-full"></canvas>
+          
+          <!-- Empty State -->
+          <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+            <i class="fa fa-pencil text-5xl mb-3"></i>
+            <h3 class="text-xl font-medium mb-1">Start Drawing</h3>
+            <p class="text-sm">Create a new note or select one from the list</p>
+          </div>
+          
+          <!-- Eraser Preview (hidden by default) -->
+          <div id="eraser-preview" class="eraser-preview" style="display: none;"></div>
+          
+          <!-- Selection Rectangle (hidden by default) -->
+          <div id="selection-rect" class="selection-rect" style="display: none;">
+            <div class="selection-handle" style="top: -4px; left: -4px; cursor: nwse-resize;"></div>
+            <div class="selection-handle" style="top: -4px; right: -4px; cursor: nesw-resize;"></div>
+            <div class="selection-handle" style="bottom: -4px; left: -4px; cursor: nesw-resize;"></div>
+            <div class="selection-handle" style="bottom: -4px; right: -4px; cursor: nwse-resize;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Import PDF Modal -->
+  <div id="import-pdf-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium">Import PDF</h3>
+        <button id="close-import-modal" class="action-btn text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Select PDF File</label>
+        <input type="file" id="pdf-file-input" accept=".pdf" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+        <p id="selected-file-name" class="mt-1 text-sm text-gray-500"></p>
+      </div>
+      
+      <div id="import-status" class="hidden mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center">
+        <i class="fa fa-spinner fa-spin mr-2"></i>
+        <span>Loading PDF...</span>
+      </div>
+      
+      <div class="flex justify-end space-x-3">
+        <button id="cancel-import" class="action-btn px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button id="confirm-import" class="action-btn px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90" disabled>
+          Import
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Export PDF Modal -->
+  <div id="export-pdf-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium">Export PDF</h3>
+        <button id="close-export-modal" class="action-btn text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">File Name</label>
+        <input type="text" id="export-file-name" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" value="My Note">
+      </div>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Page Range</label>
+        <div class="space-y-2">
+          <div class="flex items-center">
+            <input type="radio" id="all-pages" name="page-range" value="all" checked class="mr-2">
+            <label for="all-pages">All Pages</label>
+          </div>
+          <div class="flex items-center">
+            <input type="radio" id="current-page" name="page-range" value="current" class="mr-2">
+            <label for="current-page">Current Page</label>
+          </div>
+          <div class="flex items-center">
+            <input type="radio" id="custom-range" name="page-range" value="custom" class="mr-2">
+            <label for="custom-range">Custom Range</label>
+          </div>
+          <div id="custom-page-range" class="hidden ml-6 mt-2">
+            <input type="text" placeholder="e.g., 1-3,5" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+          </div>
+        </div>
+      </div>
+      
+      <div id="export-status" class="hidden mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg flex items-center">
+        <i class="fa fa-spinner fa-spin mr-2"></i>
+        <span>Generating PDF...</span>
+      </div>
+      
+      <div class="flex justify-end space-x-3">
+        <button id="cancel-export" class="action-btn px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button id="confirm-export" class="action-btn px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+          Export
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Note Edit Modal -->
+  <div id="note-edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium">Edit Note</h3>
+        <button id="close-note-edit-modal" class="action-btn text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+        <input type="text" id="edit-note-title" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+      </div>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+        <select id="edit-note-category" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+          <option value="Work" data-color="#3b82f6">Work</option>
+          <option value="Personal" data-color="#10b981">Personal</option>
+          <option value="Projects" data-color="#8b5cf6">Projects</option>
+          <option value="Ideas" data-color="#f59e0b">Ideas</option>
+          <option value="Documents" data-color="#6366f1">Documents</option>
+        </select>
+      </div>
+      
+      <div class="flex justify-end space-x-3">
+        <button id="cancel-note-edit" class="action-btn px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button id="confirm-note-edit" class="action-btn px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-confirm-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-medium">Delete Note</h3>
+        <button id="close-delete-confirm-modal" class="action-btn text-gray-500 hover:text-gray-700">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+      
+      <p class="mb-4">Are you sure you want to delete this note? This action cannot be undone.</p>
+      
+      <div class="flex justify-end space-x-3">
+        <button id="cancel-delete" class="action-btn px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+          Cancel
+        </button>
+        <button id="confirm-delete" class="action-btn px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Notification -->
+  <div id="notification" class="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 w-80 transform translate-y-10 opacity-0 transition-all duration-300 z-50">
+    <div class="flex items-start">
+      <div id="notification-icon" class="flex-shrink-0 mr-3 text-green-500">
+        <i class="fa fa-check-circle text-xl"></i>
+      </div>
+      <div class="flex-1">
+        <h4 id="notification-title" class="font-medium text-gray-900">Success</h4>
+        <p id="notification-message" class="text-sm text-gray-600 mt-1">Operation completed successfully.</p>
+      </div>
+      <button id="close-notification" class="action-btn text-gray-400 hover:text-gray-600 ml-4">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+  </div>
+  
+  <!-- JavaScript -->
+  <script>
+    // DNOTE Application - Enhanced Version
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Initializing DNOTE App (Enhanced Version)...');
+      
+      // Main Application Object
+      const DNoteApp = {
+        // Application state
+        state: {
+          currentNote: null,
+          notes: [],
+          trashNotes: [],
+          isDrawing: false,
+          currentTool: 'pen',
+          currentColor: '#000000',
+          currentLineWidth: 2,
+          eraserRadius: 15,
+          isPressureSupported: false,
+          lastPressure: 0,
+          startX: 0,
+          startY: 0,
+          paths: [],
+          textElements: [],
+          selectedElements: [],
+          isSelecting: false,
+          selectionStartX: 0,
+          selectionStartY: 0,
+          isMovingSelection: false,
+          isResizingSelection: false,
+          resizeHandle: null,
+          selectionOffsetX: 0,
+          selectionOffsetY: 0,
+          undoStack: [],
+          redoStack: [],
+          currentView: 'all', // 'all', 'recent', 'starred', 'trash'
+          editingNoteId: null // For tracking which note is being edited
+        },
+        
+        // DOM Elements
+        elements: {},
+        
+        // Initialize the application
+        init: function() {
+          console.log('Initializing DNOTE App...');
+          
+          // Get DOM elements
+          this.elements.canvas = document.getElementById('drawing-canvas');
+          this.elements.ctx = this.elements.canvas.getContext('2d');
+          this.elements.notesList = document.getElementById('notes-list');
+          this.elements.noteTitle = document.getElementById('note-title');
+          this.elements.emptyState = document.getElementById('empty-state');
+          this.elements.eraserPreview = document.getElementById('eraser-preview');
+          this.elements.selectionRect = document.getElementById('selection-rect');
+          
+          // Set canvas dimensions
+          this.resizeCanvas();
+          
+          // Load sample notes
+          this.loadSampleNotes();
+          
+          // Set up event listeners
+          this.setupEventListeners();
+          
+          // Load the first note by default
+          if (this.state.notes.length > 0) {
+            this.loadNote(this.state.notes[0]);
+          }
+          
+          console.log('DNOTE App initialized successfully!');
+        },
+        
+        // Resize canvas to match container
+        resizeCanvas: function() {
+          const container = document.getElementById('canvas-container');
+          this.elements.canvas.width = container.clientWidth;
+          this.elements.canvas.height = container.clientHeight;
+          
+          // Update eraser preview size
+          this.updateEraserPreview();
+          
+          // Redraw if there's a current note
+          if (this.state.currentNote && (this.state.paths.length > 0 || this.state.textElements.length > 0)) {
+            this.redrawCanvas();
+          }
+        },
+        
+        // Load sample notes data
+        loadSampleNotes: function() {
+          this.state.notes = [
+            {
+              id: 1,
+              title: 'Meeting Notes',
+              content: 'Project timeline discussion and next steps for the marketing campaign.',
+              category: 'Work',
+              categoryColor: '#3b82f6',
+              date: new Date(),
+              starred: false,
+              canvasData: null,
+              paths: [],
+              textElements: []
+            },
+            {
+              id: 2,
+              title: 'Shopping List',
+              content: 'Milk, eggs, bread, vegetables, and fruits for the week.',
+              category: 'Personal',
+              categoryColor: '#10b981',
+              date: new Date(Date.now() - 86400000), // Yesterday
+              starred: false,
+              canvasData: null,
+              paths: [],
+              textElements: []
+            },
+            {
+              id: 3,
+              title: 'Project Ideas',
+              content: 'New app concept with AI integration for personal finance management.',
+              category: 'Projects',
+              categoryColor: '#8b5cf6',
+              date: new Date(Date.now() - 172800000), // 2 days ago
+              starred: true,
+              canvasData: null,
+              paths: [],
+              textElements: []
+            },
+            {
+              id: 4,
+              title: 'Recipe Collection',
+              content: 'Collection of favorite recipes and new ones to try.',
+              category: 'Personal',
+              categoryColor: '#10b981',
+              date: new Date(Date.now() - 604800000), // Last week
+              starred: false,
+              canvasData: null,
+              paths: [],
+              textElements: []
+            }
+          ];
+          
+          // Initialize trash notes array
+          this.state.trashNotes = [];
+          
+          // Add notes to the UI
+          this.showNotesByView('all');
+        },
+        
+        // Set up event listeners
+        setupEventListeners: function() {
+          // Window resize event
+          window.addEventListener('resize', () => this.resizeCanvas());
+          
+          // Tool selection - using direct event listeners to avoid delegation issues
+          const toolBtns = document.querySelectorAll('.tool-btn[data-tool]');
+          toolBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const tool = e.currentTarget.getAttribute('data-tool');
+              this.selectTool(tool);
+            });
+          });
+          
+          // Color picker
+          document.getElementById('color-picker-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('color-picker').classList.toggle('hidden');
+            document.getElementById('line-width-picker').classList.add('hidden');
+            document.getElementById('eraser-radius-picker').classList.add('hidden');
+          });
+          
+          const colorBtns = document.querySelectorAll('#color-picker button');
+          colorBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const color = e.currentTarget.getAttribute('data-color');
+              this.state.currentColor = color;
+              document.getElementById('color-picker').classList.add('hidden');
+            });
+          });
+          
+          // Line width picker
+          document.getElementById('line-width-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('line-width-picker').classList.toggle('hidden');
+            document.getElementById('color-picker').classList.add('hidden');
+            document.getElementById('eraser-radius-picker').classList.add('hidden');
+          });
+          
+          document.getElementById('line-width-slider').addEventListener('input', (e) => {
+            e.stopPropagation();
+            this.state.currentLineWidth = e.target.value;
+          });
+          
+          // Eraser radius picker
+          document.getElementById('eraser-radius-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('eraser-radius-picker').classList.toggle('hidden');
+            document.getElementById('color-picker').classList.add('hidden');
+            document.getElementById('line-width-picker').classList.add('hidden');
+          });
+          
+          document.getElementById('eraser-radius-slider').addEventListener('input', (e) => {
+            e.stopPropagation();
+            this.state.eraserRadius = e.target.value;
+            this.updateEraserPreview();
+          });
+          
+          // Undo/Redo buttons
+          document.getElementById('undo-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.undo();
+          });
+          
+          document.getElementById('redo-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.redo();
+          });
+          
+          // Clear canvas button
+          document.getElementById('clear-canvas-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (confirm('Are you sure you want to clear the canvas?')) {
+              this.clearCanvas();
+            }
+          });
+          
+          // Import PDF button
+          document.getElementById('import-pdf-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.state.currentView === 'trash') {
+              this.showNotification('Cannot import PDF while in trash view.', 'error');
+              return;
+            }
+            document.getElementById('import-pdf-modal').classList.remove('hidden');
+          });
+          
+          // Export PDF button
+          document.getElementById('export-pdf-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!this.state.currentNote) {
+              this.showNotification('Please select a note to export.', 'error');
+              return;
+            }
+            document.getElementById('export-pdf-modal').classList.remove('hidden');
+          });
+          
+          // Modal close buttons
+          document.getElementById('close-import-modal').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('import-pdf-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('cancel-import').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('import-pdf-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('close-export-modal').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('export-pdf-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('cancel-export').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('export-pdf-modal').classList.add('hidden');
+          });
+          
+          // Note edit modal
+          document.getElementById('close-note-edit-modal').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('note-edit-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('cancel-note-edit').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('note-edit-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('confirm-note-edit').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.saveNoteChanges();
+          });
+          
+          // Delete confirmation modal
+          document.getElementById('close-delete-confirm-modal').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('cancel-delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('delete-confirm-modal').classList.add('hidden');
+          });
+          
+          document.getElementById('confirm-delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteSelectedNote();
+          });
+          
+          // Import PDF
+          document.getElementById('confirm-import').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.importPDF();
+          });
+          
+          // Export PDF
+          document.getElementById('confirm-export').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.exportPDF();
+          });
+          
+          // Page range radio buttons
+          const pageRangeRadios = document.querySelectorAll('input[name="page-range"]');
+          pageRangeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+              e.stopPropagation();
+              if (e.target.value === 'custom') {
+                document.getElementById('custom-page-range').classList.remove('hidden');
+              } else {
+                document.getElementById('custom-page-range').classList.add('hidden');
+              }
+            });
+          });
+          
+          // New note button
+          document.getElementById('new-note-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.state.currentView === 'trash') {
+              this.showNotification('Cannot create new notes while in trash view.', 'error');
+              return;
+            }
+            this.createNewNote();
+          });
+          
+          // Note title input
+          this.elements.noteTitle.addEventListener('input', (e) => {
+            e.stopPropagation();
+            if (this.state.currentNote) {
+              this.state.currentNote.title = e.target.value;
+              this.updateNoteInList(this.state.currentNote);
+            }
+          });
+          
+          // Star note button
+          document.getElementById('star-note-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.state.currentNote) {
+              this.toggleStarNote();
+            }
+          });
+          
+          // Notification close button
+          document.getElementById('close-notification').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.hideNotification();
+          });
+          
+          // Close color and line width pickers when clicking outside
+          document.addEventListener('click', (e) => {
+            if (!e.target.closest('#color-picker-btn') && !e.target.closest('#color-picker')) {
+              document.getElementById('color-picker').classList.add('hidden');
+            }
+            
+            if (!e.target.closest('#line-width-btn') && !e.target.closest('#line-width-picker')) {
+              document.getElementById('line-width-picker').classList.add('hidden');
+            }
+            
+            if (!e.target.closest('#eraser-radius-btn') && !e.target.closest('#eraser-radius-picker')) {
+              document.getElementById('eraser-radius-picker').classList.add('hidden');
+            }
+          });
+          
+          // Set up canvas event listeners for drawing
+          this.setupCanvasEventListeners();
+          
+          // Navigation items
+          document.getElementById('nav-all-notes').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showNotesByView('all');
+          });
+          
+          document.getElementById('nav-recent').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showNotesByView('recent');
+          });
+          
+          document.getElementById('nav-starred').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showNotesByView('starred');
+          });
+          
+          document.getElementById('nav-trash').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.showNotesByView('trash');
+          });
+          
+          // Search input
+          document.getElementById('search-input').addEventListener('input', (e) => {
+            e.stopPropagation();
+            this.searchNotes(e.target.value);
+          });
+          
+          // File input change event
+          document.getElementById('pdf-file-input').addEventListener('change', (e) => {
+            e.stopPropagation();
+            const file = e.target.files[0];
+            if (file) {
+              // Check file size (max 10MB)
+              if (file.size > 10 * 1024 * 1024) {
+                this.showNotification('File too large. Please select a file smaller than 10MB.', 'error');
+                return;
+              }
+              
+              // Check file type
+              if (!file.type.match('application/pdf')) {
+                this.showNotification('Please select a PDF file.', 'error');
+                return;
+              }
+              
+              // Enable import button
+              document.getElementById('confirm-import').disabled = false;
+              document.getElementById('selected-file-name').textContent = file.name;
+            }
+          });
+          
+          // Category selection change
+          document.getElementById('edit-note-category').addEventListener('change', (e) => {
+            e.stopPropagation();
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            const color = selectedOption.getAttribute('data-color');
+            document.getElementById('edit-note-category').style.borderColor = color;
+          });
+        },
+        
+        // Set up canvas event listeners for drawing
+        setupCanvasEventListeners: function() {
+          // Mouse move for eraser preview
+          this.elements.canvas.addEventListener('mousemove', (e) => {
+            if (this.state.currentTool === 'eraser') {
+              this.updateEraserPreviewPosition(e);
+            }
+          });
+          
+          // Mouse events
+          this.elements.canvas.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            const rect = this.elements.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            this.state.startX = x;
+            this.state.startY = y;
+            
+            // Handle different tools
+            switch (this.state.currentTool) {
+              case 'pen':
+                this.startDrawing(x, y);
+                break;
+              case 'eraser':
+                this.startErasing(x, y);
+                break;
+              case 'text':
+                this.addTextElement(x, y);
+                break;
+              case 'select':
+                this.startSelection(x, y, e);
+                break;
+            }
+          });
+          
+          this.elements.canvas.addEventListener('mousemove', (e) => {
+            if (!this.state.isDrawing && !this.state.isSelecting && !this.state.isMovingSelection && !this.state.isResizingSelection) return;
+            
+            const rect = this.elements.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Handle different tools
+            switch (this.state.currentTool) {
+              case 'pen':
+                if (this.state.isDrawing) {
+                  this.continueDrawing(x, y);
+                }
+                break;
+              case 'eraser':
+                if (this.state.isDrawing) {
+                  this.continueErasing(x, y);
+                }
+                break;
+              case 'select':
+                if (this.state.isSelecting) {
+                  this.updateSelection(x, y);
+                } else if (this.state.isMovingSelection) {
+                  this.moveSelection(x, y);
+                } else if (this.state.isResizingSelection) {
+                  this.resizeSelection(x, y);
+                }
+                break;
+            }
+          });
+          
+          this.elements.canvas.addEventListener('mouseup', (e) => {
+            if (!this.state.isDrawing && !this.state.isSelecting && !this.state.isMovingSelection && !this.state.isResizingSelection) return;
+            
+            const rect = this.elements.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Handle different tools
+            switch (this.state.currentTool) {
+              case 'pen':
+                if (this.state.isDrawing) {
+                  this.endDrawing(x, y);
+                }
+                break;
+              case 'eraser':
+                if (this.state.isDrawing) {
+                  this.endErasing(x, y);
+                }
+                break;
+              case 'select':
+                if (this.state.isSelecting) {
+                  this.endSelection(x, y);
+                } else if (this.state.isMovingSelection) {
+                  this.endMovingSelection();
+                } else if (this.state.isResizingSelection) {
+                  this.endResizingSelection();
+                }
+                break;
+            }
+          });
+          
+          // Touch events for mobile devices
+          this.elements.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = this.elements.canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            this.state.startX = x;
+            this.state.startY = y;
+            
+            // Handle different tools
+            switch (this.state.currentTool) {
+              case 'pen':
+                this.startDrawing(x, y);
+                break;
+              case 'eraser':
+                this.startErasing(x, y);
+                break;
+              case 'text':
+                this.addTextElement(x, y);
+                break;
+              case 'select':
+                this.startSelection(x, y, e);
+                break;
+            }
+          });
+          
+          this.elements.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!this.state.isDrawing && !this.state.isSelecting && !this.state.isMovingSelection && !this.state.isResizingSelection) return;
+            
+            const touch = e.touches[0];
+            const rect = this.elements.canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Handle different tools
+            switch (this.state.currentTool) {
+              case 'pen':
+                if (this.state.isDrawing) {
+                  this.continueDrawing(x, y);
+                }
+                break;
+              case 'eraser':
+                if (this.state.isDrawing) {
+                  this.continueErasing(x, y);
+                }
+                break;
+              case 'select':
+                if (this.state.isSelecting) {
+                  this.updateSelection(x, y);
+                } else if (this.state.isMovingSelection) {
+                  this.moveSelection(x, y);
+                } else if (this.state.isResizingSelection) {
+                  this.resizeSelection(x, y);
+                }
+                break;
+            }
+          });
+          
+          this.elements.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (!this.state.isDrawing && !this.state.isSelecting && !this.state.isMovingSelection && !this.state.isResizingSelection) return;
+            
+            const touch = e.changedTouches[0];
+            const rect = this.elements.canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Handle different tools
+            switch (this.state.currentTool) {
+              case 'pen':
+                if (this.state.isDrawing) {
+                  this.endDrawing(x, y);
+                }
+                break;
+              case 'eraser':
+                if (this.state.isDrawing) {
+                  this.endErasing(x, y);
+                }
+                break;
+              case 'select':
+                if (this.state.isSelecting) {
+                  this.endSelection(x, y);
+                } else if (this.state.isMovingSelection) {
+                  this.endMovingSelection();
+                } else if (this.state.isResizingSelection) {
+                  this.endResizingSelection();
+                }
+                break;
+            }
+          });
+        },
+        
+        // Start drawing with pen tool
+        startDrawing: function(x, y) {
+          this.state.isDrawing = true;
+          this.state.currentPath = [{x, y, color: this.state.currentColor, width: this.state.currentLineWidth}];
+        },
+        
+        // Continue drawing with pen tool
+        continueDrawing: function(x, y) {
+          if (!this.state.isDrawing) return;
+          
+          this.state.currentPath.push({x, y, color: this.state.currentColor, width: this.state.currentLineWidth});
+          
+          // Draw the current path
+          this.drawCurrentPath();
+        },
+        
+        // End drawing with pen tool
+        endDrawing: function(x, y) {
+          if (!this.state.isDrawing) return;
+          
+          this.state.currentPath.push({x, y, color: this.state.currentColor, width: this.state.currentLineWidth});
+          this.state.paths.push([...this.state.currentPath]);
+          
+          this.state.undoStack.push({
+            type: 'draw',
+            path: [...this.state.currentPath]
+          });
+          
+          this.state.redoStack = [];
+          this.state.isDrawing = false;
+          
+          // Final draw of the complete path
+          this.drawCurrentPath();
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+        },
+        
+        // Start erasing
+        startErasing: function(x, y) {
+          this.state.isDrawing = true;
+          this.state.currentPath = [{x, y, eraser: true, radius: this.state.eraserRadius}];
+          this.eraseAtPosition(x, y);
+        },
+        
+        // Continue erasing
+        continueErasing: function(x, y) {
+          if (!this.state.isDrawing) return;
+          
+          this.state.currentPath.push({x, y, eraser: true, radius: this.state.eraserRadius});
+          this.eraseAtPosition(x, y);
+        },
+        
+        // End erasing
+        endErasing: function(x, y) {
+          if (!this.state.isDrawing) return;
+          
+          this.state.currentPath.push({x, y, eraser: true, radius: this.state.eraserRadius});
+          this.state.paths.push([...this.state.currentPath]);
+          
+          this.state.undoStack.push({
+            type: 'erase',
+            path: [...this.state.currentPath]
+          });
+          
+          this.state.redoStack = [];
+          this.state.isDrawing = false;
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+        },
+        
+        // Erase at a specific position
+        eraseAtPosition: function(x, y) {
+          const ctx = this.elements.ctx;
+          ctx.save();
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.beginPath();
+          ctx.arc(x, y, this.state.eraserRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        },
+        
+        // Add text element
+        addTextElement: function(x, y) {
+          // Create text input area
+          const textArea = document.createElement('textarea');
+          textArea.className = 'text-input-area';
+          textArea.style.left = `${x}px`;
+          textArea.style.top = `${y}px`;
+          textArea.placeholder = 'Type here...';
+          textArea.style.color = this.state.currentColor;
+          
+          // Add to canvas container
+          document.getElementById('canvas-container').appendChild(textArea);
+          
+          // Focus the text area
+          textArea.focus();
+          
+          // Save text element data
+          const textElement = {
+            id: Date.now(),
+            x,
+            y,
+            width: 200,
+            height: 40,
+            text: '',
+            color: this.state.currentColor
+          };
+          
+          // Handle text input
+          textArea.addEventListener('input', (e) => {
+            textElement.text = e.target.value;
+            // Adjust height based on content
+            e.target.style.height = 'auto';
+            e.target.style.height = `${e.target.scrollHeight}px`;
+            textElement.height = e.target.scrollHeight;
+          });
+          
+          // Handle blur (lose focus)
+          textArea.addEventListener('blur', (e) => {
+            // Save text if not empty
+            if (textElement.text.trim() !== '') {
+              // Draw text on canvas
+              this.drawTextOnCanvas(textElement);
+              
+              // Add to text elements array
+              this.state.textElements.push(textElement);
+              
+              // Add to undo stack
+              this.state.undoStack.push({
+                type: 'text',
+                element: {...textElement}
+              });
+              
+              this.state.redoStack = [];
+              
+              // Save canvas data to current note
+              this.saveCanvasToNote();
+            }
+            
+            // Remove text area
+            document.getElementById('canvas-container').removeChild(textArea);
+          });
+          
+          // Handle Enter key (finish editing)
+          textArea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              textArea.blur();
+            }
+          });
+        },
+        
+        // Draw text on canvas
+        drawTextOnCanvas: function(textElement) {
+          const ctx = this.elements.ctx;
+          ctx.save();
+          ctx.font = '16px Arial';
+          ctx.fillStyle = textElement.color;
+          
+          // Split text into lines
+          const lines = textElement.text.split('\n');
+          const lineHeight = 20;
+          
+          // Draw each line
+          lines.forEach((line, index) => {
+            ctx.fillText(line, textElement.x, textElement.y + 16 + (index * lineHeight));
+          });
+          
+          ctx.restore();
+        },
+        
+        // Start selection
+        startSelection: function(x, y, e) {
+          // Check if click is inside existing selection
+          const selectionRect = this.elements.selectionRect;
+          const rect = selectionRect.getBoundingClientRect();
+          
+          if (selectionRect.style.display !== 'none') {
+            // Check if clicking on resize handle
+            const handles = selectionRect.querySelectorAll('.selection-handle');
+            let clickedHandle = null;
+            
+            for (let i = 0; i < handles.length; i++) {
+              const handleRect = handles[i].getBoundingClientRect();
+              if (e.clientX >= handleRect.left && e.clientX <= handleRect.right && 
+                  e.clientY >= handleRect.top && e.clientY <= handleRect.bottom) {
+                clickedHandle = handles[i];
+                break;
+              }
+            }
+            
+            if (clickedHandle) {
+              // Start resizing
+              this.state.isResizingSelection = true;
+              this.state.resizeHandle = clickedHandle;
+              this.state.selectionStartX = x;
+              this.state.selectionStartY = y;
+              return;
+            }
+            
+            // Check if clicking inside selection area
+            if (e.clientX >= rect.left && e.clientX <= rect.right && 
+                e.clientY >= rect.top && e.clientY <= rect.bottom) {
+              // Start moving
+              this.state.isMovingSelection = true;
+              this.state.selectionOffsetX = e.clientX - rect.left;
+              this.state.selectionOffsetY = e.clientY - rect.top;
+              return;
+            }
+          }
+          
+          // Start new selection
+          this.state.isSelecting = true;
+          this.state.selectionStartX = x;
+          this.state.selectionStartY = y;
+          this.state.selectedElements = [];
+          
+          // Hide current selection
+          selectionRect.style.display = 'none';
+        },
+        
+        // Update selection
+        updateSelection: function(x, y) {
+          if (!this.state.isSelecting) return;
+          
+          // Calculate selection rectangle
+          const left = Math.min(this.state.selectionStartX, x);
+          const top = Math.min(this.state.selectionStartY, y);
+          const width = Math.abs(x - this.state.selectionStartX);
+          const height = Math.abs(y - this.state.selectionStartY);
+          
+          // Update selection rectangle
+          const selectionRect = this.elements.selectionRect;
+          selectionRect.style.display = 'block';
+          selectionRect.style.left = `${left}px`;
+          selectionRect.style.top = `${top}px`;
+          selectionRect.style.width = `${width}px`;
+          selectionRect.style.height = `${height}px`;
+        },
+        
+        // End selection
+        endSelection: function(x, y) {
+          if (!this.state.isSelecting) return;
+          
+          this.state.isSelecting = false;
+          
+          // Get selection rectangle
+          const selectionRect = this.elements.selectionRect;
+          const left = parseInt(selectionRect.style.left);
+          const top = parseInt(selectionRect.style.top);
+          const width = parseInt(selectionRect.style.width);
+          const height = parseInt(selectionRect.style.height);
+          
+          // If selection is too small, cancel
+          if (width < 5 || height < 5) {
+            selectionRect.style.display = 'none';
+            return;
+          }
+          
+          // Find elements within selection
+          this.state.selectedElements = [];
+          
+          // Check paths
+          this.state.paths.forEach((path, pathIndex) => {
+            // Simplified: check if any point in the path is within selection
+            for (let i = 0; i < path.length; i++) {
+              const point = path[i];
+              if (point.x >= left && point.x <= left + width && 
+                  point.y >= top && point.y <= top + height) {
+                this.state.selectedElements.push({
+                  type: 'path',
+                  index: pathIndex
+                });
+                break;
+              }
+            }
+          });
+          
+          // Check text elements
+          this.state.textElements.forEach((text, textIndex) => {
+            if (text.x >= left && text.x <= left + width && 
+                text.y >= top && text.y <= top + height) {
+              this.state.selectedElements.push({
+                type: 'text',
+                index: textIndex
+              });
+            }
+          });
+          
+          // If no elements selected, hide selection
+          if (this.state.selectedElements.length === 0) {
+            selectionRect.style.display = 'none';
+          }
+        },
+        
+        // Move selection
+        moveSelection: function(x, y) {
+          if (!this.state.isMovingSelection) return;
+          
+          const canvasRect = this.elements.canvas.getBoundingClientRect();
+          const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
+          
+          // Calculate new position
+          let newLeft = x - this.state.selectionOffsetX;
+          let newTop = y - this.state.selectionOffsetY;
+          
+          // Keep within canvas bounds
+          newLeft = Math.max(0, Math.min(newLeft, this.elements.canvas.width - parseInt(this.elements.selectionRect.style.width)));
+          newTop = Math.max(0, Math.min(newTop, this.elements.canvas.height - parseInt(this.elements.selectionRect.style.height)));
+          
+          // Update selection rectangle
+          this.elements.selectionRect.style.left = `${newLeft}px`;
+          this.elements.selectionRect.style.top = `${newTop}px`;
+          
+          // Calculate offset
+          const offsetX = newLeft - parseInt(this.elements.selectionRect.style.left);
+          const offsetY = newTop - parseInt(this.elements.selectionRect.style.top);
+          
+          // Update selection rectangle (again, because we just read its position)
+          this.elements.selectionRect.style.left = `${newLeft}px`;
+          this.elements.selectionRect.style.top = `${newTop}px`;
+          
+          // Move selected elements
+          this.state.selectedElements.forEach(element => {
+            if (element.type === 'path') {
+              const path = this.state.paths[element.index];
+              path.forEach(point => {
+                point.x += offsetX;
+                point.y += offsetY;
+              });
+            } else if (element.type === 'text') {
+              const text = this.state.textElements[element.index];
+              text.x += offsetX;
+              text.y += offsetY;
+            }
+          });
+          
+          // Redraw canvas
+          this.redrawCanvas();
+        },
+        
+        // End moving selection
+        endMovingSelection: function() {
+          if (!this.state.isMovingSelection) return;
+          
+          this.state.isMovingSelection = false;
+          
+          // Add to undo stack
+          this.state.undoStack.push({
+            type: 'move',
+            elements: [...this.state.selectedElements],
+            offsetX: 0, // Would store actual offset in a real app
+            offsetY: 0
+          });
+          
+          this.state.redoStack = [];
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+        },
+        
+        // Resize selection
+        resizeSelection: function(x, y) {
+          if (!this.state.isResizingSelection || !this.state.resizeHandle) return;
+          
+          const selectionRect = this.elements.selectionRect;
+          let left = parseInt(selectionRect.style.left);
+          let top = parseInt(selectionRect.style.top);
+          let width = parseInt(selectionRect.style.width);
+          let height = parseInt(selectionRect.style.height);
+          
+          // Determine which handle is being used
+          const handleClass = this.state.resizeHandle.className;
+          
+          // Calculate new dimensions based on handle
+          if (handleClass.includes('nwse-resize')) {
+            if (this.state.resizeHandle.style.top === '-4px' && this.state.resizeHandle.style.left === '-4px') {
+              // Top-left handle
+              left = Math.min(x, left + width - 10);
+              top = Math.min(y, top + height - 10);
+              width = Math.max(10, width + (parseInt(selectionRect.style.left) - left));
+              height = Math.max(10, height + (parseInt(selectionRect.style.top) - top));
+            } else {
+              // Bottom-right handle
+              width = Math.max(10, x - left);
+              height = Math.max(10, y - top);
+            }
+          } else {
+            if (this.state.resizeHandle.style.top === '-4px' && this.state.resizeHandle.style.right === '-4px') {
+              // Top-right handle
+              width = Math.max(10, x - left);
+              top = Math.min(y, top + height - 10);
+              height = Math.max(10, height + (parseInt(selectionRect.style.top) - top));
+            } else {
+              // Bottom-left handle
+              left = Math.min(x, left + width - 10);
+              width = Math.max(10, width + (parseInt(selectionRect.style.left) - left));
+              height = Math.max(10, y - top);
+            }
+          }
+          
+          // Update selection rectangle
+          selectionRect.style.left = `${left}px`;
+          selectionRect.style.top = `${top}px`;
+          selectionRect.style.width = `${width}px`;
+          selectionRect.style.height = `${height}px`;
+          
+          // Calculate scale factors
+          const scaleX = width / parseInt(selectionRect.style.width);
+          const scaleY = height / parseInt(selectionRect.style.height);
+          
+          // Update selection rectangle (again, because we just read its position)
+          selectionRect.style.width = `${width}px`;
+          selectionRect.style.height = `${height}px`;
+          
+          // Resize selected elements
+          this.state.selectedElements.forEach(element => {
+            if (element.type === 'path') {
+              const path = this.state.paths[element.index];
+              path.forEach(point => {
+                // Adjust position relative to selection origin
+                point.x = left + ((point.x - parseInt(selectionRect.style.left)) * scaleX);
+                point.y = top + ((point.y - parseInt(selectionRect.style.top)) * scaleY);
+                
+                // Adjust line width for paths
+                if (point.width) {
+                  point.width *= Math.sqrt(scaleX * scaleY);
+                }
+                
+                // Adjust eraser radius for eraser paths
+                if (point.radius) {
+                  point.radius *= Math.sqrt(scaleX * scaleY);
+                }
+              });
+            } else if (element.type === 'text') {
+              const text = this.state.textElements[element.index];
+              // Adjust position relative to selection origin
+              text.x = left + ((text.x - parseInt(selectionRect.style.left)) * scaleX);
+              text.y = top + ((text.y - parseInt(selectionRect.style.top)) * scaleY);
+              // Adjust dimensions
+              text.width *= scaleX;
+              text.height *= scaleY;
+            }
+          });
+          
+          // Redraw canvas
+          this.redrawCanvas();
+        },
+        
+        // End resizing selection
+        endResizingSelection: function() {
+          if (!this.state.isResizingSelection) return;
+          
+          this.state.isResizingSelection = false;
+          this.state.resizeHandle = null;
+          
+          // Add to undo stack
+          this.state.undoStack.push({
+            type: 'resize',
+            elements: [...this.state.selectedElements],
+            scaleX: 1, // Would store actual scale in a real app
+            scaleY: 1
+          });
+          
+          this.state.redoStack = [];
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+        },
+        
+        // Update eraser preview
+        updateEraserPreview: function() {
+          const preview = this.elements.eraserPreview;
+          const diameter = this.state.eraserRadius * 2;
+          preview.style.width = `${diameter}px`;
+          preview.style.height = `${diameter}px`;
+          preview.style.marginLeft = `-${this.state.eraserRadius}px`;
+          preview.style.marginTop = `-${this.state.eraserRadius}px`;
+        },
+        
+        // Update eraser preview position
+        updateEraserPreviewPosition: function(e) {
+          const preview = this.elements.eraserPreview;
+          preview.style.display = 'block';
+          preview.style.left = `${e.clientX}px`;
+          preview.style.top = `${e.clientY}px`;
+        },
+        
+        // Draw the current path
+        drawCurrentPath: function() {
+          // Clear the canvas and redraw all paths
+          this.redrawCanvas();
+        },
+        
+        // Select a tool
+        selectTool: function(tool) {
+          this.state.currentTool = tool;
+          
+          // Update active tool button
+          document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+            btn.classList.remove('active');
+          });
+          document.querySelector(`.tool-btn[data-tool="${tool}"]`).classList.add('active');
+          
+          // Show/hide eraser radius control
+          const eraserRadiusContainer = document.getElementById('eraser-radius-container');
+          if (tool === 'eraser') {
+            eraserRadiusContainer.style.display = 'block';
+            this.elements.eraserPreview.style.display = 'block';
+          } else {
+            eraserRadiusContainer.style.display = 'none';
+            this.elements.eraserPreview.style.display = 'none';
+          }
+          
+          // Hide selection if switching from select tool
+          if (tool !== 'select') {
+            this.elements.selectionRect.style.display = 'none';
+            this.state.selectedElements = [];
+          }
+          
+          // Set cursor style
+          const canvas = this.elements.canvas;
+          switch (tool) {
+            case 'pen':
+              canvas.style.cursor = 'crosshair';
+              break;
+            case 'eraser':
+              canvas.style.cursor = 'none'; // Hide cursor, use preview instead
+              break;
+            case 'text':
+              canvas.style.cursor = 'text';
+              break;
+            case 'select':
+              canvas.style.cursor = 'default';
+              break;
+            default:
+              canvas.style.cursor = 'default';
+          }
+        },
+        
+        // Undo last action
+        undo: function() {
+          if (this.state.undoStack.length === 0) return;
+          
+          const action = this.state.undoStack.pop();
+          this.state.redoStack.push(action);
+          
+          // Handle different action types
+          switch (action.type) {
+            case 'draw':
+              if (this.state.paths.length > 0) {
+                this.state.paths.pop();
+              }
+              break;
+            case 'erase':
+              if (this.state.paths.length > 0) {
+                this.state.paths.pop();
+              }
+              break;
+            case 'text':
+              if (this.state.textElements.length > 0) {
+                this.state.textElements.pop();
+              }
+              break;
+            case 'clear':
+              // Restore paths and text elements from action
+              if (action.paths) {
+                this.state.paths = [...action.paths];
+              }
+              if (action.textElements) {
+                this.state.textElements = [...action.textElements];
+              }
+              break;
+          }
+          
+          // Redraw the canvas
+          this.redrawCanvas();
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+        },
+        
+        // Redo last undone action
+        redo: function() {
+          if (this.state.redoStack.length === 0) return;
+          
+          const action = this.state.redoStack.pop();
+          this.state.undoStack.push(action);
+          
+          // Handle different action types
+          switch (action.type) {
+            case 'draw':
+              this.state.paths.push(action.path);
+              break;
+            case 'erase':
+              this.state.paths.push(action.path);
+              break;
+            case 'text':
+              this.state.textElements.push(action.element);
+              break;
+            case 'clear':
+              // Clear paths and text elements
+              this.state.paths = [];
+              this.state.textElements = [];
+              break;
+          }
+          
+          // Redraw the canvas
+          this.redrawCanvas();
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+        },
+        
+        // Clear the canvas
+        clearCanvas: function() {
+          // Save current state for undo
+          this.state.undoStack.push({
+            type: 'clear',
+            paths: [...this.state.paths],
+            textElements: [...this.state.textElements]
+          });
+          
+          this.elements.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
+          this.state.paths = [];
+          this.state.textElements = [];
+          this.state.redoStack = [];
+          
+          // Hide selection
+          this.elements.selectionRect.style.display = 'none';
+          this.state.selectedElements = [];
+          
+          // Save canvas data to current note
+          this.saveCanvasToNote();
+          
+          this.showNotification('Canvas cleared!');
+        },
+        
+        // Redraw the canvas from paths and text elements
+        redrawCanvas: function() {
+          const ctx = this.elements.ctx;
+          ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
+          
+          // Draw all paths
+          this.state.paths.forEach(path => {
+            if (path.length < 2) return;
+            
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+            
+            for (let i = 1; i < path.length; i++) {
+              const point = path[i];
+              
+              if (point.eraser) {
+                // Skip eraser paths for redraw (they're destructive)
+                continue;
+              }
+              
+              // Set path properties
+              ctx.strokeStyle = point.color || this.state.currentColor;
+              ctx.lineWidth = point.width || this.state.currentLineWidth;
+              ctx.lineCap = 'round';
+              ctx.lineJoin = 'round';
+              
+              ctx.lineTo(point.x, point.y);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(point.x, point.y);
+            }
+          });
+          
+          // Draw all text elements
+          this.state.textElements.forEach(textElement => {
+            ctx.font = '16px Arial';
+            ctx.fillStyle = textElement.color || this.state.currentColor;
+            
+            // Split text into lines
+            const lines = textElement.text.split('\n');
+            const lineHeight = 20;
+            
+            // Draw each line
+            lines.forEach((line, index) => {
+              ctx.fillText(line, textElement.x, textElement.y + 16 + (index * lineHeight));
+            });
+          });
+        },
+        
+        // Save canvas data to current note
+        saveCanvasToNote: function() {
+          if (!this.state.currentNote) return;
+          
+          // Save paths and text elements to note
+          this.state.currentNote.paths = [...this.state.paths];
+          this.state.currentNote.textElements = [...this.state.textElements];
+          
+          // Save canvas as image data (for backup)
+          this.state.currentNote.canvasData = this.elements.canvas.toDataURL('image/png');
+        },
+        
+        // Create a new note
+        createNewNote: function() {
+          const newNote = {
+            id: Date.now(),
+            title: 'New Note',
+            content: '',
+            category: 'Personal',
+            categoryColor: '#10b981',
+            date: new Date(),
+            starred: false,
+            canvasData: null,
+            paths: [],
+            textElements: []
+          };
+          
+          this.state.notes.unshift(newNote);
+          this.addNoteToList(newNote);
+          this.loadNote(newNote);
+          
+          this.showNotification('New note created!');
+        },
+        
+        // Add a note to the notes list
+        addNoteToList: function(note) {
+          // Create note item element
+          const noteItem = document.createElement('div');
+          noteItem.className = 'note-item p-3 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer hover:shadow-md mb-3 relative';
+          noteItem.setAttribute('data-note-id', note.id);
+          
+          // Format date
+          const dateStr = this.formatDate(note.date);
+          
+          // Set note item content
+          noteItem.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-medium">${note.title}</h3>
+              <span class="text-xs text-gray-500">${dateStr}</span>
+            </div>
+            <p class="text-sm text-gray-600 line-clamp-2">${note.content}</p>
+            <div class="mt-2 flex items-center text-xs text-gray-500">
+              <span class="w-2 h-2 rounded-full" style="background-color: ${note.categoryColor}"></span>
+              <span>${note.category}</span>
+            </div>
+            <div class="note-item-menu absolute top-2 right-2">
+              <button class="edit-note-btn p-1 rounded-full hover:bg-gray-100" data-note-id="${note.id}">
+                <i class="fa fa-ellipsis-v text-gray-500"></i>
+              </button>
+            </div>
+          `;
+          
+          // Add click event
+          noteItem.addEventListener('click', (e) => {
+            // Don't trigger if clicking on menu button
+            if (e.target.closest('.edit-note-btn')) return;
+            
+            this.loadNote(note);
+          });
+          
+          // Add menu button click event
+          const menuBtn = noteItem.querySelector('.edit-note-btn');
+          menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showNoteMenu(note.id, e.clientX, e.clientY);
+          });
+          
+          // Add to notes list at the beginning
+          this.elements.notesList.insertBefore(noteItem, this.elements.notesList.firstChild);
+        },
+        
+        // Show note menu
+        showNoteMenu: function(noteId, x, y) {
+          // Create menu element
+          const menu = document.createElement('div');
+          menu.className = 'absolute bg-white rounded-lg shadow-lg border border-gray-200 z-50 w-48';
+          menu.style.left = `${x}px`;
+          menu.style.top = `${y}px`;
+          menu.style.position = 'fixed';
+          
+          // Set menu content
+          menu.innerHTML = `
+            <ul>
+              <li>
+                <button class="edit-note-option w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center" data-note-id="${noteId}">
+                  <i class="fa fa-pencil mr-2 text-gray-500"></i> Edit
+                </button>
+              </li>
+              <li>
+                <button class="delete-note-option w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center" data-note-id="${noteId}">
+                  <i class="fa fa-trash-o mr-2 text-gray-500"></i> Delete
+                </button>
+              </li>
+            </ul>
+          `;
+          
+          // Add to document
+          document.body.appendChild(menu);
+          
+          // Add event listeners
+          menu.querySelector('.edit-note-option').addEventListener('click', () => {
+            this.editNote(noteId);
+            document.body.removeChild(menu);
+          });
+          
+          menu.querySelector('.delete-note-option').addEventListener('click', () => {
+            this.showDeleteConfirmation(noteId);
+            document.body.removeChild(menu);
+          });
+          
+          // Remove menu when clicking outside
+          const removeMenu = (e) => {
+            if (!menu.contains(e.target)) {
+              document.body.removeChild(menu);
+              document.removeEventListener('click', removeMenu);
+            }
+          };
+          
+          setTimeout(() => {
+            document.addEventListener('click', removeMenu);
+          }, 0);
+        },
+        
+        // Edit note
+        editNote: function(noteId) {
+          // Find note
+          const note = this.state.notes.find(n => n.id === noteId);
+          if (!note) return;
+          
+          // Set editing note ID
+          this.state.editingNoteId = noteId;
+          
+          // Fill form
+          document.getElementById('edit-note-title').value = note.title;
+          
+          // Set category
+          const categorySelect = document.getElementById('edit-note-category');
+          for (let i = 0; i < categorySelect.options.length; i++) {
+            if (categorySelect.options[i].value === note.category) {
+              categorySelect.selectedIndex = i;
+              categorySelect.style.borderColor = note.categoryColor;
+              break;
+            }
+          }
+          
+          // Show modal
+          document.getElementById('note-edit-modal').classList.remove('hidden');
+        },
+        
+        // Save note changes
+        saveNoteChanges: function() {
+          if (this.state.editingNoteId === null) return;
+          
+          // Find note
+          const noteIndex = this.state.notes.findIndex(n => n.id === this.state.editingNoteId);
+          if (noteIndex === -1) return;
+          
+          const note = this.state.notes[noteIndex];
+          
+          // Update note
+          note.title = document.getElementById('edit-note-title').value;
+          
+          const categorySelect = document.getElementById('edit-note-category');
+          note.category = categorySelect.value;
+          note.categoryColor = categorySelect.options[categorySelect.selectedIndex].getAttribute('data-color');
+          
+          // Update UI
+          this.updateNoteInList(note);
+          
+          // If current note is being edited, update title input
+          if (this.state.currentNote && this.state.currentNote.id === note.id) {
+            this.elements.noteTitle.value = note.title;
+          }
+          
+          // Hide modal
+          document.getElementById('note-edit-modal').classList.add('hidden');
+          
+          // Reset editing note ID
+          this.state.editingNoteId = null;
+          
+          this.showNotification('Note updated!');
+        },
+        
+        // Show delete confirmation
+        showDeleteConfirmation: function(noteId) {
+          // Set note ID for deletion
+          this.state.editingNoteId = noteId;
+          
+          // Show modal
+          document.getElementById('delete-confirm-modal').classList.remove('hidden');
+        },
+        
+        // Delete selected note
+        deleteSelectedNote: function() {
+          if (this.state.editingNoteId === null) return;
+          
+          // Find note
+          const noteIndex = this.state.notes.findIndex(n => n.id === this.state.editingNoteId);
+          if (noteIndex === -1) return;
+          
+          const note = this.state.notes[noteIndex];
+          
+          // Move note to trash
+          this.state.notes.splice(noteIndex, 1);
+          this.state.trashNotes.push({
+            ...note,
+            deletedAt: new Date()
+          });
+          
+          // Remove from UI
+          const noteElement = document.querySelector(`.note-item[data-note-id="${note.id}"]`);
+          if (noteElement) {
+            noteElement.remove();
+          }
+          
+          // If current note was deleted, load first note or show empty state
+          if (this.state.currentNote && this.state.currentNote.id === note.id) {
+            if (this.state.notes.length > 0) {
+              this.loadNote(this.state.notes[0]);
+            } else {
+              this.loadNote(null);
+            }
+          }
+          
+          // Hide modal
+          document.getElementById('delete-confirm-modal').classList.add('hidden');
+          
+          // Reset editing note ID
+          this.state.editingNoteId = null;
+          
+          this.showNotification('Note moved to trash!');
+        },
+        
+        // Update a note in the notes list
+        updateNoteInList: function(note) {
+          const noteItem = document.querySelector(`.note-item[data-note-id="${note.id}"]`);
+          if (!noteItem) return;
+          
+          // Format date
+          const dateStr = this.formatDate(note.date);
+          
+          // Update note item content
+          noteItem.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-medium">${note.title}</h3>
+              <span class="text-xs text-gray-500">${dateStr}</span>
+            </div>
+            <p class="text-sm text-gray-600 line-clamp-2">${note.content}</p>
+            <div class="mt-2 flex items-center text-xs text-gray-500">
+              <span class="w-2 h-2 rounded-full" style="background-color: ${note.categoryColor}"></span>
+              <span>${note.category}</span>
+            </div>
+            <div class="note-item-menu absolute top-2 right-2">
+              <button class="edit-note-btn p-1 rounded-full hover:bg-gray-100" data-note-id="${note.id}">
+                <i class="fa fa-ellipsis-v text-gray-500"></i>
+              </button>
+            </div>
+          `;
+          
+          // Add click event
+          noteItem.addEventListener('click', (e) => {
+            // Don't trigger if clicking on menu button
+            if (e.target.closest('.edit-note-btn')) return;
+            
+            this.loadNote(note);
+          });
+          
+          // Add menu button click event
+          const menuBtn = noteItem.querySelector('.edit-note-btn');
+          menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showNoteMenu(note.id, e.clientX, e.clientY);
+          });
+        },
+        
+        // Load a note
+        loadNote: function(note) {
+          this.state.currentNote = note;
+          
+          if (!note) {
+            // Show empty state
+            this.elements.noteTitle.value = '';
+            this.elements.emptyState.classList.remove('hidden');
+            this.elements.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
+            this.state.paths = [];
+            this.state.textElements = [];
+            return;
+          }
+          
+          // Update note title
+          this.elements.noteTitle.value = note.title;
+          
+          // Clear canvas
+          this.elements.ctx.clearRect(0, 0, this.elements.canvas.width, this.elements.canvas.height);
+          
+          // Load paths and text elements
+          this.state.paths = note.paths ? [...note.paths] : [];
+          this.state.textElements = note.textElements ? [...note.textElements] : [];
+          
+          // Hide empty state
+          this.elements.emptyState.classList.add('hidden');
+          
+          // Redraw canvas
+          this.redrawCanvas();
+          
+          // Update star button
+          const starBtn = document.getElementById('star-note-btn');
+          if (note.starred) {
+            starBtn.innerHTML = '<i class="fa fa-star text-yellow-500"></i>';
+          } else {
+            starBtn.innerHTML = '<i class="fa fa-star-o"></i>';
+          }
+          
+          // Update active note item
+          document.querySelectorAll('.note-item').forEach(item => {
+            item.classList.remove('ring-2', 'ring-primary');
+          });
+          const activeNoteItem = document.querySelector(`.note-item[data-note-id="${note.id}"]`);
+          if (activeNoteItem) {
+            activeNoteItem.classList.add('ring-2', 'ring-primary');
+          }
+          
+          // Hide selection
+          this.elements.selectionRect.style.display = 'none';
+          this.state.selectedElements = [];
+        },
+        
+        // Toggle star status of current note
+        toggleStarNote: function() {
+          if (!this.state.currentNote) return;
+          
+          this.state.currentNote.starred = !this.state.currentNote.starred;
+          
+          // Update star button
+          const starBtn = document.getElementById('star-note-btn');
+          if (this.state.currentNote.starred) {
+            starBtn.innerHTML = '<i class="fa fa-star text-yellow-500"></i>';
+            this.showNotification('Note starred!');
+          } else {
+            starBtn.innerHTML = '<i class="fa fa-star-o"></i>';
+            this.showNotification('Note unstarred!');
+          }
+          
+          // Update note in list
+          this.updateNoteInList(this.state.currentNote);
+          
+          // If in starred view and note was unstarred, remove from view
+          if (this.state.currentView === 'starred' && !this.state.currentNote.starred) {
+            const noteElement = document.querySelector(`.note-item[data-note-id="${this.state.currentNote.id}"]`);
+            if (noteElement) {
+              noteElement.remove();
+            }
+            
+            // Load first note or show empty state
+            const starredNotes = this.state.notes.filter(n => n.starred);
+            if (starredNotes.length > 0) {
+              this.loadNote(starredNotes[0]);
+            } else {
+              this.loadNote(null);
+            }
+          }
+        },
+        
+        // Format date to relative time (Today, Yesterday, etc.)
+        formatDate: function(date) {
+          const now = new Date();
+          const diff = now - date;
+          
+          // Less than 24 hours
+          if (diff < 86400000) {
+            return 'Today';
+          }
+          
+          // Less than 48 hours
+          if (diff < 172800000) {
+            return 'Yesterday';
+          }
+          
+          // Less than 7 days
+          if (diff < 604800000) {
+            return `${Math.floor(diff / 86400000)} days ago`;
+          }
+          
+          // Otherwise, return formatted date
+          return date.toLocaleDateString();
+        },
+        
+        // Show notes by view type
+        showNotesByView: function(view) {
+          this.state.currentView = view;
+          this.elements.notesList.innerHTML = '';
+          
+          let notesToShow = [];
+          
+          switch (view) {
+            case 'all':
+              notesToShow = this.state.notes;
+              break;
+            case 'recent':
+              notesToShow = this.state.notes.filter(note => {
+                const diff = new Date() - note.date;
+                return diff < 604800000; // Less than 7 days
+              });
+              break;
+            case 'starred':
+              notesToShow = this.state.notes.filter(note => note.starred);
+              break;
+            case 'trash':
+              notesToShow = this.state.trashNotes;
+              break;
+          }
+          
+          // Show notes
+          if (notesToShow.length === 0) {
+            let emptyMessage = '';
+            switch (view) {
+              case 'all':
+                emptyMessage = 'No notes yet. Create your first note!';
+                break;
+              case 'recent':
+                emptyMessage = 'No recent notes.';
+                break;
+              case 'starred':
+                emptyMessage = 'No starred notes.';
+                break;
+              case 'trash':
+                emptyMessage = 'No notes in trash.';
+                break;
+            }
+            
+            this.elements.notesList.innerHTML = `
+              <div class="flex flex-col items-center justify-center py-8 text-gray-500">
+                <i class="fa fa-sticky-note-o text-4xl mb-2"></i>
+                <p>${emptyMessage}</p>
+              </div>
+            `;
+            
+            // Load null note to show empty state
+            this.loadNote(null);
+          } else {
+            notesToShow.forEach(note => {
+              this.addNoteToList(note);
+            });
+            
+            // Load first note
+            this.loadNote(notesToShow[0]);
+          }
+          
+          // Update active nav item
+          this.updateActiveNavItem(`nav-${view}`);
+        },
+        
+        // Update active navigation item
+        updateActiveNavItem: function(activeId) {
+          document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('bg-primary/10', 'text-primary');
+            item.classList.add('text-gray-700', 'hover:bg-gray-100');
+          });
+          
+          const activeItem = document.getElementById(activeId);
+          if (activeItem) {
+            activeItem.classList.remove('text-gray-700', 'hover:bg-gray-100');
+            activeItem.classList.add('bg-primary/10', 'text-primary');
+          }
+        },
+        
+        // Search notes
+        searchNotes: function(query) {
+          if (!query.trim()) {
+            this.showNotesByView(this.state.currentView);
+            return;
+          }
+          
+          let notesToSearch = [];
+          
+          // Determine which notes to search based on current view
+          switch (this.state.currentView) {
+            case 'all':
+              notesToSearch = this.state.notes;
+              break;
+            case 'recent':
+              notesToSearch = this.state.notes.filter(note => {
+                const diff = new Date() - note.date;
+                return diff < 604800000; // Less than 7 days
+              });
+              break;
+            case 'starred':
+              notesToSearch = this.state.notes.filter(note => note.starred);
+              break;
+            case 'trash':
+              notesToSearch = this.state.trashNotes;
+              break;
+          }
+          
+          const filteredNotes = notesToSearch.filter(note => 
+            note.title.toLowerCase().includes(query.toLowerCase()) || 
+            note.content.toLowerCase().includes(query.toLowerCase())
+          );
+          
+          this.elements.notesList.innerHTML = '';
+          
+          if (filteredNotes.length === 0) {
+            this.elements.notesList.innerHTML = `
+              <div class="flex flex-col items-center justify-center py-8 text-gray-500">
+                <i class="fa fa-search text-4xl mb-2"></i>
+                <p>No notes found matching "${query}"</p>
+              </div>
+            `;
+            
+            // Load null note to show empty state
+            this.loadNote(null);
+          } else {
+            filteredNotes.forEach(note => {
+              this.addNoteToList(note);
+            });
+            
+            // Load first note
+            this.loadNote(filteredNotes[0]);
+          }
+        },
+        
+        // Import PDF
+        importPDF: function() {
+          const fileInput = document.getElementById('pdf-file-input');
+          const file = fileInput.files[0];
+          
+          if (!file) {
+            this.showNotification('Please select a PDF file.', 'error');
+            return;
+          }
+          
+          // Show loading state
+          document.getElementById('import-status').textContent = 'Loading PDF...';
+          document.getElementById('import-status').classList.remove('hidden');
+          document.getElementById('confirm-import').disabled = true;
+          
+          // Simulate PDF import (in a real app, you would use PDF.js here)
+          setTimeout(() => {
+            // Create a new note with the PDF content
+            const newNote = {
+              id: Date.now(),
+              title: file.name.replace(/\.[^/.]+$/, ""), // Remove file extension
+              content: `Imported PDF: ${file.name}`,
+              category: 'Documents',
+              categoryColor: '#6366f1',
+              date: new Date(),
+              starred: false,
+              canvasData: null,
+              paths: [],
+              textElements: []
+            };
+            
+            // Add note to the app
+            this.state.notes.unshift(newNote);
+            
+            // If current view is 'all', add to list
+            if (this.state.currentView === 'all') {
+              this.addNoteToList(newNote);
+              this.loadNote(newNote);
+            }
+            
+            // Close modal
+            document.getElementById('import-pdf-modal').classList.add('hidden');
+            
+            // Show success notification
+            this.showNotification('PDF imported successfully!');
+            
+            // Reset loading state
+            document.getElementById('import-status').classList.add('hidden');
+            document.getElementById('confirm-import').disabled = false;
+          }, 1500);
+        },
+        
+        // Export PDF
+        exportPDF: function() {
+          if (!this.state.currentNote) {
+            this.showNotification('Please select a note to export.', 'error');
+            return;
+          }
+          
+          const noteTitle = document.getElementById('export-file-name').value || this.state.currentNote.title;
+          
+          // Show loading state
+          document.getElementById('export-status').textContent = 'Generating PDF...';
+          document.getElementById('export-status').classList.remove('hidden');
+          document.getElementById('confirm-export').disabled = true;
+          
+          // Simulate PDF export (in a real app, you would use jsPDF here)
+          setTimeout(() => {
+            // Create a dummy PDF download link
+            const link = document.createElement('a');
+            link.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(`PDF Content for: ${noteTitle}`);
+            link.download = `${noteTitle}.pdf`;
+            link.click();
+            
+            // Close modal
+            document.getElementById('export-pdf-modal').classList.add('hidden');
+            
+            // Show success notification
+            this.showNotification('PDF exported successfully!');
+            
+            // Reset loading state
+            document.getElementById('export-status').classList.add('hidden');
+            document.getElementById('confirm-export').disabled = false;
+          }, 1500);
+        },
+        
+        // Show notification
+        showNotification: function(message, type = 'success') {
+          const notification = document.getElementById('notification');
+          const notificationTitle = document.getElementById('notification-title');
+          const notificationMessage = document.getElementById('notification-message');
+          const notificationIcon = document.getElementById('notification-icon');
+          
+          // Set message
+          notificationMessage.textContent = message;
+          
+          // Set type
+          if (type === 'success') {
+            notificationTitle.textContent = 'Success';
+            notificationIcon.className = 'flex-shrink-0 mr-3 text-green-500';
+            notificationIcon.innerHTML = '<i class="fa fa-check-circle text-xl"></i>';
+          } else if (type === 'error') {
+            notificationTitle.textContent = 'Error';
+            notificationIcon.className = 'flex-shrink-0 mr-3 text-red-500';
+            notificationIcon.innerHTML = '<i class="fa fa-exclamation-circle text-xl"></i>';
+          } else if (type === 'info') {
+            notificationTitle.textContent = 'Info';
+            notificationIcon.className = 'flex-shrink-0 mr-3 text-blue-500';
+            notificationIcon.innerHTML = '<i class="fa fa-info-circle text-xl"></i>';
+          }
+          
+          // Show notification
+          notification.classList.remove('translate-y-10', 'opacity-0');
+          
+          // Auto hide after 3 seconds
+          setTimeout(() => {
+            this.hideNotification();
+          }, 3000);
+        },
+        
+        // Hide notification
+        hideNotification: function() {
+          const notification = document.getElementById('notification');
+          notification.classList.add('translate-y-10', 'opacity-0');
+        }
+      };
+      
+      // Initialize the app
+      DNoteApp.init();
+    });
+  </script>
+</body>
+</html>

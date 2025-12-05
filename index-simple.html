@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNOTE - Simple Version</title>
+  <!-- Tailwind CSS v3 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4f46e5',
+            secondary: '#6366f1',
+            accent: '#8b5cf6',
+            success: '#10b981',
+            warning: '#f59e0b',
+            error: '#ef4444',
+            info: '#3b82f6',
+            light: '#f3f4f6',
+            dark: '#1f2937'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 h-screen flex flex-col overflow-hidden">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 py-3 px-4 flex items-center justify-between">
+    <div class="flex items-center">
+      <div class="text-primary font-bold text-2xl mr-2">
+        <i class="fa fa-sticky-note-o"></i>
+      </div>
+      <h1 class="text-xl font-bold text-gray-800">DNOTE</h1>
+    </div>
+    
+    <div class="flex items-center space-x-4">
+      <button id="new-note-btn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center transition-all">
+        <i class="fa fa-plus mr-2"></i> New Note
+      </button>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="flex flex-1 overflow-hidden">
+    <!-- Left Sidebar - Navigation -->
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <nav class="p-4 flex-1">
+        <ul class="space-y-2">
+          <li>
+            <a id="nav-all-notes" href="#" class="flex items-center px-4 py-2 rounded-lg bg-primary/10 text-primary">
+              <i class="fa fa-list-ul w-5 mr-3"></i>
+              <span>All Notes</span>
+            </a>
+          </li>
+          <li>
+            <a id="nav-recent" href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+              <i class="fa fa-clock-o w-5 mr-3"></i>
+              <span>Recent</span>
+            </a>
+          </li>
+          <li>
+            <a id="nav-starred" href="#" class="flex items-center px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">
+              <i class="fa fa-star-o w-5 mr-3"></i>
+              <span>Starred</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+    
+    <!-- Middle Section - Notes List -->
+    <section class="w-80 bg-gray-50 border-r border-gray-200 flex flex-col">
+      <div class="p-4 border-b border-gray-200">
+        <div class="relative">
+          <input type="text" id="search-input" placeholder="Search notes..." class="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+          <i class="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+      </div>
+      
+      <div class="flex-1 overflow-y-auto p-4" id="notes-list">
+        <!-- Notes will be dynamically added here -->
+      </div>
+    </section>
+    
+    <!-- Right Section - Note Editor -->
+    <section class="flex-1 flex flex-col bg-white">
+      <!-- Note Editor Header -->
+      <div class="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div class="flex-1">
+          <input type="text" id="note-title" placeholder="Note title..." class="w-full text-xl font-medium border-none outline-none bg-transparent">
+        </div>
+        
+        <div class="flex items-center space-x-2">
+          <button id="star-note-btn" class="text-gray-600 hover:text-yellow-500 p-2 rounded-lg hover:bg-gray-100">
+            <i class="fa fa-star-o"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Note Content -->
+      <div class="flex-1 p-6 overflow-y-auto">
+        <textarea id="note-content" class="w-full h-full border-none outline-none resize-none text-gray-800" placeholder="Start writing your note..."></textarea>
+      </div>
+    </section>
+  </main>
+  
+  <script>
+    // Simple DNOTE App
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Simple DNOTE App initialized');
+      
+      // Sample notes data
+      let notes = [
+        {
+          id: 1,
+          title: 'Meeting Notes',
+          content: 'Project timeline discussion and next steps for the marketing campaign.',
+          category: 'Work',
+          categoryColor: '#3b82f6',
+          date: new Date(),
+          starred: false
+        },
+        {
+          id: 2,
+          title: 'Shopping List',
+          content: 'Milk, eggs, bread, vegetables, and fruits for the week.',
+          category: 'Personal',
+          categoryColor: '#10b981',
+          date: new Date(Date.now() - 86400000), // Yesterday
+          starred: false
+        },
+        {
+          id: 3,
+          title: 'Project Ideas',
+          content: 'New app concept with AI integration for personal finance management.',
+          category: 'Projects',
+          categoryColor: '#8b5cf6',
+          date: new Date(Date.now() - 172800000), // 2 days ago
+          starred: true
+        }
+      ];
+      
+      let currentNote = null;
+      
+      // DOM Elements
+      const notesList = document.getElementById('notes-list');
+      const noteTitle = document.getElementById('note-title');
+      const noteContent = document.getElementById('note-content');
+      const newNoteBtn = document.getElementById('new-note-btn');
+      const starNoteBtn = document.getElementById('star-note-btn');
+      const searchInput = document.getElementById('search-input');
+      const navAllNotes = document.getElementById('nav-all-notes');
+      const navRecent = document.getElementById('nav-recent');
+      const navStarred = document.getElementById('nav-starred');
+      
+      // Load all notes
+      function loadNotes(notesToShow = notes) {
+        notesList.innerHTML = '';
+        
+        if (notesToShow.length === 0) {
+          notesList.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8 text-gray-500">
+              <i class="fa fa-sticky-note-o text-4xl mb-2"></i>
+              <p>No notes found</p>
+            </div>
+          `;
+          return;
+        }
+        
+        notesToShow.forEach(note => {
+          const noteItem = document.createElement('div');
+          noteItem.className = 'note-item p-3 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer hover:shadow-md mb-3';
+          noteItem.setAttribute('data-note-id', note.id);
+          
+          const dateStr = formatDate(note.date);
+          
+          noteItem.innerHTML = `
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-medium">${note.title}</h3>
+              <span class="text-xs text-gray-500">${dateStr}</span>
+            </div>
+            <p class="text-sm text-gray-600 line-clamp-2">${note.content}</p>
+            <div class="mt-2 flex items-center text-xs text-gray-500">
+              <span class="w-2 h-2 rounded-full" style="background-color: ${note.categoryColor}"></span>
+              <span>${note.category}</span>
+            </div>
+          `;
+          
+          noteItem.addEventListener('click', () => {
+            loadNote(note);
+          });
+          
+          notesList.appendChild(noteItem);
+        });
+      }
+      
+      // Load a specific note
+      function loadNote(note) {
+        currentNote = note;
+        noteTitle.value = note.title;
+        noteContent.value = note.content;
+        
+        // Update star button
+        starNoteBtn.innerHTML = note.starred ? '<i class="fa fa-star text-yellow-500"></i>' : '<i class="fa fa-star-o"></i>';
+        
+        // Highlight selected note
+        document.querySelectorAll('.note-item').forEach(item => {
+          item.classList.remove('ring-2', 'ring-primary');
+        });
+        document.querySelector(`.note-item[data-note-id="${note.id}"]`).classList.add('ring-2', 'ring-primary');
+      }
+      
+      // Create a new note
+      function createNewNote() {
+        const newNote = {
+          id: Date.now(),
+          title: 'New Note',
+          content: '',
+          category: 'Personal',
+          categoryColor: '#10b981',
+          date: new Date(),
+          starred: false
+        };
+        
+        notes.unshift(newNote);
+        loadNotes();
+        loadNote(newNote);
+      }
+      
+      // Format date
+      function formatDate(date) {
+        const now = new Date();
+        const diff = now - date;
+        
+        if (diff < 86400000) return 'Today';
+        if (diff < 172800000) return 'Yesterday';
+        if (diff < 604800000) return `${Math.floor(diff / 86400000)} days ago`;
+        
+        return date.toLocaleDateString();
+      }
+      
+      // Update note title
+      noteTitle.addEventListener('input', function() {
+        if (currentNote) {
+          currentNote.title = this.value;
+          loadNotes();
+          loadNote(currentNote);
+        }
+      });
+      
+      // Update note content
+      noteContent.addEventListener('input', function() {
+        if (currentNote) {
+          currentNote.content = this.value;
+        }
+      });
+      
+      // Toggle star
+      starNoteBtn.addEventListener('click', function() {
+        if (currentNote) {
+          currentNote.starred = !currentNote.starred;
+          this.innerHTML = currentNote.starred ? '<i class="fa fa-star text-yellow-500"></i>' : '<i class="fa fa-star-o"></i>';
+          loadNotes();
+          loadNote(currentNote);
+        }
+      });
+      
+      // Search notes
+      searchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        const filteredNotes = notes.filter(note => 
+          note.title.toLowerCase().includes(query) || 
+          note.content.toLowerCase().includes(query)
+        );
+        loadNotes(filteredNotes);
+      });
+      
+      // Navigation
+      navAllNotes.addEventListener('click', function(e) {
+        e.preventDefault();
+        loadNotes();
+      });
+      
+      navRecent.addEventListener('click', function(e) {
+        e.preventDefault();
+        const recentNotes = notes.filter(note => {
+          const diff = new Date() - note.date;
+          return diff < 604800000; // Less than 7 days
+        });
+        loadNotes(recentNotes);
+      });
+      
+      navStarred.addEventListener('click', function(e) {
+        e.preventDefault();
+        const starredNotes = notes.filter(note => note.starred);
+        loadNotes(starredNotes);
+      });
+      
+      // New note button
+      newNoteBtn.addEventListener('click', createNewNote);
+      
+      // Initial load
+      loadNotes();
+      if (notes.length > 0) {
+        loadNote(notes[0]);
+      }
+    });
+  </script>
+</body>
+</html>
