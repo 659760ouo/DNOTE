@@ -186,6 +186,9 @@
                             <button class="tool-btn" data-tool="text">
                                 <i class="fa fa-font"></i>
                             </button>
+                            <button class="tool-btn" id="clearCanvasBtn">
+                                <i class="fa fa-trash"></i>
+                            </button>
                             <button class="tool-btn" data-tool="eraser">
                                 <i class="fa fa-eraser"></i>
                             </button>
@@ -342,47 +345,75 @@
                     </div>
                 </div>
                 
-                <!-- PDF Viewer (Hidden by default) -->
+                <!-- PDF Viewer with Annotation (Hidden by default) -->
                 <div id="pdf-viewer" class="hidden h-full flex flex-col">
                     <div class="bg-secondary/50 rounded-t-xl p-3 flex items-center justify-between">
                         <div class="flex items-center gap-3">
                             <button class="tool-btn" id="close-pdf-btn">
                                 <i class="fa fa-arrow-left"></i>
                             </button>
-                            <h3 class="font-semibold" id="pdf-title">Quarterly Report</h3>
+                            <h3 class="font-semibold" id="pdf-title">PDF 查看器</h3>
                         </div>
                         
                         <div class="flex items-center gap-3">
-                            <button class="tool-btn" data-pdf-tool="highlight">
-                                <i class="fa fa-highlighter"></i>
-                            </button>
-                            <button class="tool-btn" data-pdf-tool="note">
-                                <i class="fa fa-sticky-note"></i>
-                            </button>
-                            <button class="tool-btn" data-pdf-tool="download">
+                            <!-- Annotation Tools -->
+                            <div class="flex gap-2">
+                                <button class="tool-btn active" data-pdf-tool="pen" id="pdf-pen-tool">
+                                    <i class="fa fa-pencil"></i>
+                                </button>
+                                <button class="tool-btn" data-pdf-tool="eraser" id="pdf-eraser-tool">
+                                    <i class="fa fa-eraser"></i>
+                                </button>
+                                <button class="tool-btn" id="pdf-clear-annotations">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Page Navigation -->
+                            <div class="flex items-center gap-2">
+                                <button class="tool-btn" id="pdf-prev-page">
+                                    <i class="fa fa-chevron-left"></i>
+                                </button>
+                                <span class="text-sm px-2 py-1 bg-white/10 rounded" id="pdf-page-info">1 / 1</span>
+                                <button class="tool-btn" id="pdf-next-page">
+                                    <i class="fa fa-chevron-right"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <button class="tool-btn" id="pdf-download-btn">
                                 <i class="fa fa-download"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <div class="flex-1 bg-white/5 rounded-b-xl overflow-auto p-4">
+                    <!-- Annotation Settings -->
+                    <div class="bg-white/5 p-3 border-b border-white/10">
+                        <div class="flex gap-4">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">颜色:</span>
+                                <input type="color" id="pdf-annotation-color" value="#ff4757" class="w-8 h-8 rounded cursor-pointer">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm">粗细:</span>
+                                <input type="range" id="pdf-brush-size" min="1" max="10" value="2" class="w-24 accent-accent">
+                                <span class="text-sm" id="pdf-brush-size-value">2px</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- PDF Container -->
+                    <div class="flex-1 bg-white/5 rounded-b-xl overflow-auto p-4 relative">
                         <div id="pdf-container" class="w-full flex justify-center">
-                            <!-- PDF content will be rendered here -->
-                            <div class="bg-white w-[800px] min-h-[1000px] m-4 p-8 text-dark">
-                                <h1 class="text-2xl font-bold mb-4">Quarterly Report</h1>
-                                <h2 class="text-xl font-semibold mb-2">Q3 2025</h2>
-                                <p class="mb-4">This is a sample PDF document displayed in the NoteFlow application. In a real implementation, we would use PDF.js to render actual PDF content.</p>
-                                <h3 class="text-lg font-semibold mb-2">Summary</h3>
-                                <p class="mb-4">The third quarter showed significant growth in all key metrics. Revenue increased by 15% compared to the previous quarter, and user engagement is at an all-time high.</p>
-                                <h3 class="text-lg font-semibold mb-2">Key Performance Indicators</h3>
-                                <ul class="list-disc pl-6 mb-4">
-                                    <li>Revenue: $4.2M (+15% QoQ)</li>
-                                    <li>Active Users: 125K (+10% QoQ)</li>
-                                    <li>Customer Retention: 87% (+3% QoQ)</li>
-                                    <li>Conversion Rate: 5.2% (+0.8% QoQ)</li>
-                                </ul>
-                                <h3 class="text-lg font-semibold mb-2">Recommendations</h3>
-                                <p class="mb-4">Based on the current trends, we recommend increasing our marketing budget for the next quarter and expanding our product offerings in the enterprise segment.</p>
+                            <!-- PDF will be rendered here -->
+                            <canvas id="pdf-canvas" class="bg-white shadow-lg my-4"></canvas>
+                        </div>
+                        
+                        <!-- Loading Indicator -->
+                        <div id="pdf-loading" class="absolute inset-0 bg-black/30 flex items-center justify-center hidden">
+                            <div class="bg-secondary p-4 rounded-lg flex items-center gap-3">
+                                <div class="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                <span>加载 PDF 中...</span>
                             </div>
                         </div>
                     </div>
